@@ -17,7 +17,9 @@ return { generate, trace, isSolved, dailyLevel, shiftDay, encodeLevel, decodeLev
 const { generate, trace, isSolved, dailyLevel, shiftDay, encodeLevel, decodeLevel, isSunday, isPortalDay, hasPortal, T } = api;
 
 let failed = 0;
-const check = (name, ok, detail = "") => { console.log(`${ok ? "ok  " : "FEHLER"} ${name}${detail ? " – " + detail : ""}`); if (!ok) failed++; };
+const check = (name, ok, detail = "") => { console.log(`${ok ? "ok  " : "FEHLER"} ${name}${detail ? " – " + detail : ""}`); if (!ok) failed++;
+  // In GitHub Actions zusätzlich als Anmerkung: öffentlich lesbar, auch ohne Anmeldung
+  if (!ok && process.env.GITHUB_ACTIONS) console.log(`::error::${name}${detail ? " – " + String(detail).replace(/\s+/g, " ") : ""}`); };
 const sha = x => crypto.createHash("sha1").update(x).digest("hex");
 const solve = L => { for (const c of L.grid.flat()) { if (c.flipped) c.o ^= 1; if (c.t === T.PRISM) c.r = c.sol; } return L; };
 const needed = L => L.grid.flat().reduce((s, c) => s + (c.flipped ? 1 : 0) + (c.t === T.PRISM ? (c.sol - c.r + 4) % 4 : 0), 0);

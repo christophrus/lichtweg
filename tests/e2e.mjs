@@ -10,7 +10,9 @@ const engine = process.env.LW_BROWSER || "chromium";
 const browser = await pw[engine].launch(process.env.LW_CHANNEL ? { channel: process.env.LW_CHANNEL } : {});
 console.log("Engine:", engine);
 let failed = 0;
-const check = (name, ok, detail = "") => { console.log(`${ok ? "ok  " : "FEHLER"} ${name}${detail ? " – " + detail : ""}`); if (!ok) failed++; };
+const check = (name, ok, detail = "") => { console.log(`${ok ? "ok  " : "FEHLER"} ${name}${detail ? " – " + detail : ""}`); if (!ok) failed++;
+  // In GitHub Actions zusätzlich als Anmerkung: öffentlich lesbar, auch ohne Anmeldung
+  if (!ok && process.env.GITHUB_ACTIONS) console.log(`::error::${engine}: ${name}${detail ? " – " + String(detail).replace(/\s+/g, " ") : ""}`); };
 
 async function page(lang = "de", setup) {
   const ctx = await browser.newContext({ locale: lang === "de" ? "de-DE" : "en-US", serviceWorkers: "block" });
