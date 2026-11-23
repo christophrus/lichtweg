@@ -48,6 +48,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v24.1:** Der Regressionstest prüft auch das Seitengerüst: doppelte IDs, tote `$(…)`- und aria-Verweise.
 - **v25 – Robuster Spielstand:** Ein kaputter Eintrag im Speicher hielt das Spiel beim Start an. Jetzt wird er
   geglättet (Unlesbares bleibt unter `lichtweg-kaputt` erhalten), gesperrter oder voller Speicher wirft nicht mehr.
+- **v25.1 – Links gefuzzt:** 27 kaputte und böswillige Links (HTML im Titel, abgeschnittene Codes, Riesenzahlen)
+  ohne Fehler. Kaputte Zufallslevel-Links melden sich jetzt auch, Screenreader hören die Meldung.
 
 ## Als Nächstes
 

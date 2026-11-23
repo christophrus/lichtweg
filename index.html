@@ -1021,9 +1021,16 @@ function scrambleForShare() {
 const titleOf = code => { const i = code.indexOf("&t="); if (i < 0) return ""; try { return decodeURIComponent(code.slice(i + 3)).trim().slice(0, 40); } catch { return ""; } };
 const withTitle = code => { const t = $("etitle").value.trim().slice(0, 40); return t ? code + "&t=" + encodeURIComponent(t) : code; };
 const quoted = t => tx(`„${t}“`, `“${t}”`);
+// Kaputter Link (oft von Messengern abgeschnitten): normales Level laden und es sagen, auch dem Screenreader
+function brokenLink(seed) {
+  loadLevel(save.current || 1);
+  const msg = seed ? tx("Dieser Zufallslevel-Link ist leider kaputt.", "Sorry, this random level link is broken.")
+    : tx("Dieser Level-Link ist leider kaputt, vielleicht wurde er beim Kopieren abgeschnitten.", "Sorry, this level link is broken. Maybe it got cut off when copying.");
+  $("hint").textContent = msg; $("hint").style.opacity = 1; layout(); say(msg);
+}
 function loadCustom(code, fromEditor = false) {
   const title = titleOf(code), lv = decodeLevel(code.split("&t=")[0]);
-  if (!lv) { loadLevel(save.current || 1); $("hint").textContent = tx("Dieser Level-Link ist leider kaputt.", "Sorry, this level link is broken."); $("hint").style.opacity = 1; layout(); return; }
+  if (!lv) { brokenLink(false); return; }
   mode = "custom"; customCode = code; customFromEditor = fromEditor;
   startPlay(lv);
   setHash("#l=" + code);
@@ -1640,6 +1647,7 @@ addEventListener("hashchange", () => {
   else if (h === "#bauen" && mode !== "edit") openEditor();
   else if (h.startsWith("#l=") && (mode !== "custom" || h.slice(3) !== customCode)) loadCustom(h.slice(3));
   else if (parseSeed(h) && (mode !== "seed" || h !== seedHash(L.n, L.seed))) loadSeed(...parseSeed(h));
+  else if (h.startsWith("#z=") && !parseSeed(h)) brokenLink(true);
 });
 // Tab offen über Mitternacht: Badge aktualisieren, damit das neue Rätsel auffällt
 setInterval(updateDailyBadge, 60000);
@@ -1687,6 +1695,7 @@ $("install").onclick = async () => { if (!installPrompt) return; installPrompt.p
 layout();
 if (location.hash.startsWith("#l=")) loadCustom(location.hash.slice(3));
 else if (parseSeed(location.hash)) loadSeed(...parseSeed(location.hash));
+else if (location.hash.startsWith("#z=")) brokenLink(true);
 else if (location.hash === "#bauen") openEditor();
 else if (location.hash === "#heute" || (save.mode === "daily" && !location.hash)) loadDaily(); else loadLevel(save.current || 1);
 requestAnimationFrame(frame);
