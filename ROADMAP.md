@@ -54,6 +54,7 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   mindestens 38×44 statt 25×36 px. Das Brett bleibt gleich groß (geprüft bei 375×812, 375×667, 320×568).
 - **v26 – Rückmeldung:** Knopf in der Levelübersicht öffnet ein GitHub-Issue mit dem aktuellen Level (ohne
   persönliche Daten). Damit hat „Als Nächstes“ eine Quelle.
+- **v26.1 – CI:** Der Regressionstest läuft bei jedem Push in GitHub Actions.
 
 ## Als Nächstes
 

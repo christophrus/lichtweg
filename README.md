@@ -1,5 +1,7 @@
 # Lichtweg
 
+[![Regressionstest](https://github.com/christophrus/lichtweg/actions/workflows/test.yml/badge.svg)](https://github.com/christophrus/lichtweg/actions/workflows/test.yml)
+
 Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strahl durch alle Kristalle in die Linse lenken.
 
 **Spielen:** https://christophrus.github.io/lichtweg/ · **Tagesrätsel:** https://christophrus.github.io/lichtweg/#heute
@@ -61,6 +63,7 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 - Level-Links überstehen Hin- und Rückweg.
 
 Vor jeder Änderung am Generator laufen lassen.
+Läuft außerdem bei jedem Push automatisch (GitHub Actions).
 
 `python tests/qr_check.py` (braucht opencv-python) liest 125 erzeugte QR-Codes mit zwei unabhängigen Decodern zurück.
 
