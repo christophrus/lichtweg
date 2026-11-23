@@ -82,6 +82,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v27.5 – Tastatur in Dialogen:** Tab blieb nicht im offenen Dialog und landete bei den Knöpfen dahinter,
   obwohl `aria-modal` das verspricht. Jetzt kreist der Fokus im Dialog. Im Level- und Kalenderraster wandern die
   Pfeiltasten nach Lage (rechts/links/hoch/runter) statt 400 Mal Tab.
+- **v27.6 – Handy quer:** Bei quer gehaltenem Handy fraßen Kopfzeile und Hinweis die knappe Höhe, die Felder waren
+  24 px (bei 568×320 nur 19 px). Jetzt stehen die Knöpfe als Spalte rechts, Titel, Züge und Hinweis links, und das
+  Brett bekommt die volle Höhe: 38 bzw. 32 px pro Feld. Browser-Test prüft Größe und Überlappung.
 
 ## Als Nächstes
 

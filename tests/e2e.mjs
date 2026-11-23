@@ -164,6 +164,18 @@ if (engine === "chromium") {
     $("feedback").scrollIntoView({ block: "nearest" }); const f = $("feedback").getBoundingClientRect();
     return { top: r.top, bottom: r.bottom, h: innerHeight, last: f.bottom <= innerHeight && f.top >= 0 }; });
   check("Handy: Levelübersicht passt und scrollt bis unten", fit.top >= 0 && fit.bottom <= fit.h && fit.last, JSON.stringify(fit));
+  // Quer: Brett nutzt die Höhe, Knöpfe rechts daneben, nichts liegt übereinander
+  await p.evaluate(() => { closeLevels(); loadLevel(30); });
+  await p.setViewportSize({ width: 667, height: 375 });
+  await p.waitForFunction(() => document.body.classList.contains("land"));
+  const q = await p.evaluate(() => {
+    const board = { l: ox, r: ox + cs * L.size, t: oy, b: oy + cs * L.size };
+    const hit = el => { const r = el.getBoundingClientRect(); return r.right > board.l && r.left < board.r && r.bottom > board.t && r.top < board.b; };
+    const btns = [...document.querySelectorAll("#hud button")];
+    return { cs: Math.round(cs), small: btns.filter(b => { const r = b.getBoundingClientRect(); return r.width < 36 || r.height < 36; }).length,
+      overlap: [...btns, $("stats"), $("hint")].filter(hit).map(e => e.id), inside: board.t >= 0 && board.b <= innerHeight && board.r <= innerWidth };
+  });
+  check("Handy quer: Felder groß, nichts überdeckt das Brett", q.cs >= 34 && !q.small && !q.overlap.length && q.inside, JSON.stringify(q));
   await ctx.close();
 }
 
