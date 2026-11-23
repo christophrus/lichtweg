@@ -182,6 +182,8 @@ if (engine === "chromium") {
   await p.waitForSelector("#win.show", { timeout: 8000 });
   const d = await p.evaluate(() => save.daily);
   check("Nachgeholt steht im Kalender", d.results["2026-11-30"]?.late === true);
+  const shared = await p.evaluate(() => dailyShareText());
+  check("Geteilt wird der Tag, nicht heute, und keine Serie", /#tag=2026-11-30$/.test(shared) && /nachgeholt/.test(shared) && !/Serie/.test(shared), shared);
   check("Serie und heutiger Stand bleiben", d.streak === 2 && d.last === "2026-12-04" && d.progress?.moves === 3, JSON.stringify([d.streak, d.last, d.progress]));
   await p.evaluate(() => { location.hash = "#heute"; });
   await p.waitForFunction(() => !L.archive && L.day === "2026-12-05");
@@ -189,6 +191,9 @@ if (engine === "chromium") {
   await p.evaluate(() => { location.hash = "#tag=2026-12-07"; });
   await p.waitForTimeout(200);
   check("Zukunft lässt sich nicht öffnen", await p.evaluate(() => L.day === "2026-12-05" && !L.archive));
+  await p.evaluate(() => loadLevel(1)); await p.evaluate(() => { location.hash = "#tag=2026-12-05"; });
+  await p.waitForFunction(() => mode === "daily");
+  check("Link auf heute öffnet das heutige Rätsel", await p.evaluate(() => L.day === "2026-12-05" && !L.archive && moves === 3));
   check("Archiv ohne Fehler", !p.errors.length, p.errors.join(" | "));
   await p.context().close();
 }

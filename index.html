@@ -693,7 +693,8 @@ const isPastDay = t => dayNumber(t) >= 1 && dayKey(t) < dayKey(dayOf(new Date())
 function parseDayHash(h) {
   const m = /^#tag=(\d{4})-(\d{2})-(\d{2})$/.exec(h || ""); if (!m) return null;
   const t = { y: +m[1], m: +m[2], d: +m[3] };
-  return dayKey(shiftDay(t, 0)) === dayKey(t) && isPastDay(t) ? t : null;   // echtes Datum, nicht in der Zukunft
+  const ok = dayKey(shiftDay(t, 0)) === dayKey(t) && (isPastDay(t) || dayKey(t) === dayKey(dayOf(new Date())));
+  return ok ? t : null;   // echtes Datum von #1 bis heute, nicht in der Zukunft
 }
 function loadDaily(past) {
   if (past && !isPastDay(past)) past = null;
@@ -919,15 +920,20 @@ async function shareBoard() {
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "lichtweg.png" });
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
+// Der Link nennt den Tag: Wer ihn morgen öffnet, bekommt dasselbe Rätsel (#heute wäre dann schon ein anderes)
+function dailyShareText() {
+  const r = save.daily.results[L.day]; if (!r) return null;
+  const tail = L.archive ? tx(" · nachgeholt", " · caught up") : tx(` · Serie ${save.daily.streak}`, ` · streak ${save.daily.streak}`);
+  return tx(`Lichtweg · Tagesrätsel #${L.num}\n${starText(r.stars)} ${r.moves} ${mv(r.moves)} (Ziel ${r.par})${tail}\n`,
+    `Lichtweg · daily #${L.num}\n${starText(r.stars)} ${r.moves} ${mv(r.moves)} (target ${r.par})${tail}\n`)
+    + location.origin + location.pathname + "#tag=" + L.day;
+}
 async function shareDaily() {
   if (mode === "seed") return shareText(tx(`Lichtweg · Zufallslevel, Stufe ${L.n} (Ziel: ${L.par} ${mv(L.par)})\n`, `Lichtweg · random level, tier ${L.n} (target: ${L.par} ${mv(L.par)})\n`)
     + location.origin + location.pathname + seedHash(L.n, L.seed), $("share"), tx("Link teilen", "Share link"));
   const tt = titleOf(customCode || ""), named = tt ? " " + quoted(tt) : "";
   if (mode === "custom") return shareText(tx(`Lichtweg · Ein Level für dich${named} (Ziel: ${L.par} ${mv(L.par)})\n`, `Lichtweg · a level for you${named} (target: ${L.par} ${mv(L.par)})\n`) + levelLink(customCode), $("share"), tx("Link teilen", "Share link"));
-  const r = save.daily.results[L.day]; if (!r) return;
-  const text = tx(`Lichtweg · Tagesrätsel #${L.num}\n${starText(r.stars)} ${r.moves} ${mv(r.moves)} (Ziel ${r.par}) · Serie ${save.daily.streak}\n`,
-    `Lichtweg · daily #${L.num}\n${starText(r.stars)} ${r.moves} ${mv(r.moves)} (target ${r.par}) · streak ${save.daily.streak}\n`)
-    + location.origin + location.pathname + "#heute";
+  const text = dailyShareText(); if (!text) return;
   if (navigator.share && matchMedia("(pointer: coarse)").matches) {
     try { await navigator.share({ text }); return; } catch (e) { if (e.name === "AbortError") return; }
   }

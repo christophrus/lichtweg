@@ -74,6 +74,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v27.2 – Karten scrollen:** Auf kleinen Handys (320×568, 375×667, quer) war das untere Ende der Levelübersicht
   (Spielstand sichern/laden, Rückmeldung) abgeschnitten und unerreichbar. Karten sind jetzt höchstens so hoch wie
   der Bildschirm und scrollen innen; der Browser-Test prüft das.
+- **v27.3 – Geteilte Tagesrätsel zeigen auf ihren Tag:** „Teilen“ verlinkte immer `#heute` – wer den Link am
+  nächsten Tag (oder bei einem nachgeholten Rätsel) öffnete, bekam ein anderes Rätsel. Jetzt `#tag=JJJJ-MM-TT`;
+  nachgeholte Ergebnisse nennen keine Serie mehr.
 
 ## Als Nächstes
 
