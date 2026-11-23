@@ -697,6 +697,7 @@ function onWin() {
     $("winTitle").textContent = "Licht gefunden";
     text = moves <= L.par ? `${moves} Züge – perfekt.` : `${moves} Züge · Ziel war ${L.par}.`;
     $("share").hidden = false; $("share").textContent = "Link teilen";
+    if (mode === "seed") { save.randomSolved = (save.randomSolved || 0) + 1; persist(); }
     $("go").textContent = mode === "seed" ? "Noch ein Zufallslevel" : customFromEditor ? "Zum Editor" : "Zu den Leveln";
   } else {
     let r = save.daily.results[L.day];
@@ -1187,10 +1188,24 @@ function openLevels() {
     b.onclick = () => { closeLevels(); loadLevel(n); };
     g.append(b);
   }
-  $("levelsInfo").textContent = `${save.unlocked - 1} gelöst · ${sum} von ${(save.unlocked - 1) * 3} Sternen`;
+  const perfect = Object.values(save.stars).filter(v => v === 3).length, ds = dailyStats(), extra = [];
+  if (ds.solved) extra.push(`Tagesrätsel: ${ds.solved} gelöst, ${ds.perfect} perfekt, längste Serie ${ds.best} ${ds.best === 1 ? "Tag" : "Tage"}`);
+  if (save.randomSolved) extra.push(`Zufallslevel: ${save.randomSolved} gelöst`);
+  $("levelsInfo").innerHTML = `${save.unlocked - 1} gelöst · ${sum} von ${(save.unlocked - 1) * 3} Sternen · ${perfect} perfekt`
+    + extra.map(t => `<small>${t}</small>`).join("");
   $("levels").classList.add("show");
   const cur = g.querySelector(".cur") || g.querySelectorAll("button:not(:disabled)")[save.unlocked - 1];
   if (cur) { cur.scrollIntoView({ block: "nearest" }); cur.focus({ preventScroll: true }); }
+}
+// Kleine Statistik, nur aus dem, was ohnehin im Browser liegt
+function dailyStats() {
+  const keys = Object.keys(save.daily.results).sort();
+  let best = 0, run = 0, prev = null;
+  for (const k of keys) {
+    run = prev && dayKey(shiftDay(prev, 1)) === k ? run + 1 : 1; best = Math.max(best, run);
+    const [y, m, d] = k.split("-").map(Number); prev = { y, m, d };
+  }
+  return { solved: keys.length, best, perfect: keys.filter(k => save.daily.results[k].stars === 3).length };
 }
 function closeLevels() { $("levels").classList.remove("show"); }
 

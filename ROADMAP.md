@@ -25,12 +25,12 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v10 – Zufallslevel:** neue Level in deiner Stufe aus einem zufälligen Startwert, teilbar als `#z=Stufe-Startwert`.
 - **v11 – Prismen** (ab Level 45): einseitige Spiegel mit vier Stellungen. Nur die helle Seite spiegelt, die Rückseite
   schluckt das Licht. Ein Prisma kann bis zu drei Tipper brauchen. Lösungsweg und Level vor 45 bleiben unverändert.
+- **v12 – Statistik** in der Levelübersicht: perfekte Level, Tagesrätsel, längste Serie, Zufallslevel.
 
 ## Als Nächstes
 
 Neue Mechaniken werden im Generator rückwärts gebaut und sind damit automatisch lösbar. Sie kommen mit einem
 kurzen Hinweis-Level. Ideen, die noch reifen:
-- Eine kleine Statistikseite (gelöste Level, Sterne, längste Serie), ganz ohne Server.
 - Tagesrätsel mit den neueren Mechaniken, sobald sie sich bewährt haben.
 
 ## Bewusst nicht geplant

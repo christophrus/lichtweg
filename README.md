@@ -36,7 +36,8 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   schaltet Ton und Vibration zusammen.
 - **Atmosphäre:** Unter den Glocken liegt ein leiser Klangteppich. Jeder leuchtende Kristall bringt eine eigene Stimme
   dazu. Der Himmel folgt der Uhrzeit: Nacht, Morgenrot, Tag und Abendrot.
-- Fortschritt, Sterne und Serie liegen im `localStorage` des Browsers.
+- Fortschritt, Sterne und Serie liegen im `localStorage` des Browsers. Die Levelübersicht zeigt eine kleine Statistik
+  (perfekte Level, gelöste Tagesrätsel, längste Serie, Zufallslevel).
 - Lokal: `index.html` öffnen oder `python -m http.server 8765` starten.
 
 Was als Nächstes kommt: [ROADMAP.md](ROADMAP.md)
