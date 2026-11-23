@@ -31,6 +31,7 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   und Tor oder das Paar eines Portals. Der Editor zeigt, ob der Strahl schon alles erreicht. „Testen“ verdreht die Spiegel und lässt dich selbst lösen. „Link teilen“
   kopiert einen Link, in dem das ganze Level steckt (`#l=…`). Der Entwurf bleibt im Browser gespeichert.
   Ein Titel (optional) reist im Link mit und erscheint beim Empfänger oben.
+  „QR“ zeigt den Link als QR-Code, zum Scannen von Handy zu Handy (eigener Encoder, keine Bibliothek).
   Mit Tastatur: Pfeile wandern Feld für Feld, Ziffern wählen das Werkzeug, Leertaste setzt es, `Entf` radiert, `Z` nimmt zurück.
 - **Portale** (ab Level 35): Licht, das in ein Portal fällt, kommt am Partner in derselben Richtung wieder heraus.
   Punkte unter dem Ring zeigen, welche Portale zusammengehören. Der Generator legt dafür einen Umweg mit neuen Spiegeln
@@ -58,6 +59,8 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 - Level-Links überstehen Hin- und Rückweg.
 
 Vor jeder Änderung am Generator laufen lassen.
+
+`python tests/qr_check.py` (braucht opencv-python) liest 125 erzeugte QR-Codes mit zwei unabhängigen Decodern zurück.
 
 Was als Nächstes kommt: [ROADMAP.md](ROADMAP.md)
 

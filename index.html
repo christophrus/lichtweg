@@ -74,6 +74,8 @@
     transition:opacity .35s, background .35s; }
   .overlay.show { opacity:1; pointer-events:auto; background:rgba(3,5,12,.55); }
   .overlay.show .card { transform:none; }
+  #qrCanvas { width:min(260px, 70vw); height:auto; border-radius:10px; image-rendering:pixelated; display:block; margin:6px auto 0; }
+  #qrBox { z-index:5; }
   #levelGrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(56px, 1fr)); gap:8px; width:min(480px, 78vw);
     max-height:52vh; overflow:auto; margin:14px 0 18px; padding:4px; }
   #levelGrid button { padding:8px 0 6px; display:flex; flex-direction:column; align-items:center; gap:2px; font-variant-numeric:tabular-nums; }
@@ -126,6 +128,7 @@
     <button id="eclear">Leeren</button>
     <button id="etest" class="primary">Testen</button>
     <button id="eshare" class="primary">Link teilen</button>
+    <button id="eqr" title="Als QR-Code zeigen">QR</button>
     <button id="edone">Fertig</button>
   </div>
 </div>
@@ -137,11 +140,17 @@
   <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="droneBtn" title="Leiser Klangteppich unter den Glocken">Klangteppich: an</button><button id="rand">Zufallslevel</button><button id="build">Selbst bauen</button><button id="langBtn" lang="en">English</button><button id="closeLevels">Schließen</button></div>
   <div class="ctrl minor"><button id="backup">Spielstand sichern</button><button id="restore">Spielstand laden</button></div>
 </div></div>
+<div id="qrBox" class="overlay"><div class="card">
+  <h2 id="qrTitle">Zum Scannen</h2>
+  <canvas id="qrCanvas" role="img" aria-label="QR-Code"></canvas>
+  <p id="qrText"></p>
+  <div class="ctrl"><button id="qrClose">Schließen</button></div>
+</div></div>
 <div id="win"><div class="card">
   <h2 id="winTitle">Licht gefunden</h2>
   <div class="stars" id="winStars"></div>
   <p id="winText"></p>
-  <div class="ctrl"><button id="again">Nochmal</button><button id="share" class="primary">Teilen</button><button id="shot" title="Bild des gelösten Bretts teilen">Bild</button><button id="go" class="primary">Weiter →</button></div>
+  <div class="ctrl"><button id="again">Nochmal</button><button id="share" class="primary">Teilen</button><button id="shot" title="Bild des gelösten Bretts teilen">Bild</button><button id="qrBtn" title="Als QR-Code zeigen">QR</button><button id="go" class="primary">Weiter →</button></div>
 </div></div>
 
 <script>
@@ -799,6 +808,7 @@ function onWin() {
       + tx(`<small>Nächstes Rätsel in ${Math.floor(mins / 60)} h ${mins % 60} min</small>`, `<small>Next puzzle in ${Math.floor(mins / 60)} h ${mins % 60} min</small>`);
     $("share").hidden = false; $("share").textContent = tx("Teilen", "Share"); $("go").textContent = tx("Zu den Leveln", "To the levels");
   }
+  $("qrBtn").hidden = !["custom", "seed", "daily"].includes(mode);
   $("winStars").innerHTML = [1, 2, 3].map(i => `<span class="${i <= stars ? "on" : "off"}">★</span>`).join("");
   $("winText").innerHTML = text;
   say(`${tx("Gelöst!", "Solved!")} ${$("winText").innerText.split("\n")[0]}`);
@@ -995,6 +1005,120 @@ function loadCustom(code, fromEditor = false) {
     : tx(`Jemand hat dieses Level für dich gebaut. Ziel: ${lv.par} ${mv(lv.par)}.`, `Someone built this level for you. Target: ${lv.par} ${mv(lv.par)}.`);
   $("hint").style.opacity = 1; layout();
 }
+
+// ---------- QR-Code (Byte-Modus, Fehlerkorrektur M, Version 1–15), ohne Bibliothek ----------
+// Aufbau nach ISO/IEC 18004: Daten → Reed-Solomon je Block → verschränkt → Matrix mit Masken, beste Maske gewinnt.
+const QR_M = [   // je Version: [EC-Bytes je Block, [[Blöcke, Datenbytes], …]]
+  null, [10, [[1, 16]]], [16, [[1, 28]]], [26, [[1, 44]]], [18, [[2, 32]]], [24, [[2, 43]]], [16, [[4, 27]]], [18, [[4, 31]]],
+  [22, [[2, 38], [2, 39]]], [22, [[3, 36], [2, 37]]], [26, [[4, 43], [1, 44]]], [30, [[1, 50], [4, 51]]], [22, [[6, 36], [2, 37]]],
+  [22, [[8, 37], [1, 38]]], [24, [[4, 40], [5, 41]]], [24, [[5, 41], [5, 42]]]];
+const QR_ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50],
+  [6, 30, 54], [6, 32, 58], [6, 34, 62], [6, 26, 46, 66], [6, 26, 48, 70]];
+function qrMatrix(text) {
+  const bytes = [...new TextEncoder().encode(text)];
+  let ver = 1;
+  const cap = v => QR_M[v][1].reduce((s, [n, d]) => s + n * d, 0);
+  while (ver <= 15 && 4 + (ver < 10 ? 8 : 16) + bytes.length * 8 > cap(ver) * 8) ver++;
+  if (ver > 15) return null;
+  // Bitstrom
+  const bits = [], put = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
+  put(4, 4); put(bytes.length, ver < 10 ? 8 : 16); bytes.forEach(b => put(b, 8));
+  const total = cap(ver) * 8;
+  put(0, Math.min(4, total - bits.length)); while (bits.length % 8) bits.push(0);
+  const data = []; for (let i = 0; i < bits.length; i += 8) data.push(bits.slice(i, i + 8).reduce((a, b) => a * 2 + b, 0));
+  for (let p = 0; data.length < cap(ver); p ^= 1) data.push(p ? 0x11 : 0xEC);
+  // Reed-Solomon über GF(256), Polynom 0x11D
+  const mul = (x, y) => { let z = 0; for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((y >>> i) & 1) * x; } return z & 255; };
+  const ecLen = QR_M[ver][0], div = new Array(ecLen).fill(0); div[ecLen - 1] = 1;
+  for (let i = 0, root = 1; i < ecLen; i++, root = mul(root, 2))
+    for (let j = 0; j < ecLen; j++) { div[j] = mul(div[j], root); if (j + 1 < ecLen) div[j] ^= div[j + 1]; }
+  const rem = blk => { const r = new Array(ecLen).fill(0); for (const b of blk) { const f = b ^ r.shift(); r.push(0); div.forEach((c, i) => r[i] ^= mul(c, f)); } return r; };
+  const blocks = []; let pos = 0;
+  for (const [n, d] of QR_M[ver][1]) for (let k = 0; k < n; k++) { const blk = data.slice(pos, pos + d); pos += d; blocks.push([blk, rem(blk)]); }
+  const words = [], maxD = Math.max(...blocks.map(b => b[0].length));
+  for (let i = 0; i < maxD; i++) for (const [blk] of blocks) if (i < blk.length) words.push(blk[i]);
+  for (let i = 0; i < ecLen; i++) for (const [, ec] of blocks) words.push(ec[i]);
+  // Matrix mit Funktionsmustern
+  const size = 17 + 4 * ver, M = [], F = [];
+  for (let y = 0; y < size; y++) { M.push(new Array(size).fill(false)); F.push(new Array(size).fill(false)); }
+  const set = (x, y, v) => { M[y][x] = !!v; F[y][x] = true; };
+  for (let i = 0; i < size; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  const finder = (cx, cy) => { for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+    const x = cx + dx, y = cy + dy, d = Math.max(Math.abs(dx), Math.abs(dy));
+    if (x >= 0 && y >= 0 && x < size && y < size) set(x, y, d !== 2 && d !== 4); } };
+  finder(3, 3); finder(size - 4, 3); finder(3, size - 4);
+  const al = QR_ALIGN[ver];
+  for (const ay of al) for (const ax of al) {
+    if ((ax === 6 && ay === 6) || (ax === 6 && ay === al[al.length - 1]) || (ax === al[al.length - 1] && ay === 6)) continue;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(ax + dx, ay + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+  }
+  const format = mask => {
+    const d = mask;   // Stufe M = 00
+    let r = d; for (let i = 0; i < 10; i++) r = (r << 1) ^ ((r >>> 9) * 0x537);
+    const b = ((d << 10) | r) ^ 0x5412, bit = i => (b >>> i) & 1;
+    for (let i = 0; i <= 5; i++) set(8, i, bit(i));
+    set(8, 7, bit(6)); set(8, 8, bit(7)); set(7, 8, bit(8));
+    for (let i = 9; i < 15; i++) set(14 - i, 8, bit(i));
+    for (let i = 0; i < 8; i++) set(size - 1 - i, 8, bit(i));
+    for (let i = 8; i < 15; i++) set(8, size - 15 + i, bit(i));
+    set(8, size - 8, 1);
+  };
+  format(0);
+  if (ver >= 7) {
+    let r = ver; for (let i = 0; i < 12; i++) r = (r << 1) ^ ((r >>> 11) * 0x1F25);
+    const b = (ver << 12) | r;
+    for (let i = 0; i < 18; i++) { const v = (b >>> i) & 1, a = size - 11 + i % 3, c = Math.floor(i / 3); set(a, c, v); set(c, a, v); }
+  }
+  // Daten im Zickzack
+  let i = 0;
+  for (let right = size - 1; right >= 1; right -= 2) {
+    if (right === 6) right = 5;
+    for (let vert = 0; vert < size; vert++) for (let j = 0; j < 2; j++) {
+      const x = right - j, up = ((right + 1) & 2) === 0, y = up ? size - 1 - vert : vert;
+      if (!F[y][x] && i < words.length * 8) { M[y][x] = ((words[i >>> 3] >>> (7 - (i & 7))) & 1) === 1; i++; }
+    }
+  }
+  // Maske mit der geringsten Strafe wählen (Regeln 1–4 der Norm)
+  const masks = [(x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, x => x % 3 === 0, (x, y) => (x + y) % 3 === 0,
+    (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0, (x, y) => x * y % 2 + x * y % 3 === 0,
+    (x, y) => (x * y % 2 + x * y % 3) % 2 === 0, (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0];
+  const apply = m => { for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (!F[y][x] && masks[m](x, y)) M[y][x] = !M[y][x]; };
+  const penalty = () => {
+    let p = 0, dark = 0;
+    for (let a = 0; a < size; a++) for (const row of [true, false]) {
+      let run = 1;
+      for (let b = 1; b <= size; b++) {
+        const same = b < size && (row ? M[a][b] === M[a][b - 1] : M[b][a] === M[b - 1][a]);
+        if (same) run++; else { if (run >= 5) p += run - 2; run = 1; }
+      }
+    }
+    for (let y = 0; y < size - 1; y++) for (let x = 0; x < size - 1; x++) { const c = M[y][x]; if (c === M[y][x + 1] && c === M[y + 1][x] && c === M[y + 1][x + 1]) p += 3; }
+    const P1 = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0], P2 = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1];   // Regel 3: falsche Suchmuster
+    const at = (row, a, b) => row ? M[a][b] : M[b][a];
+    for (let a = 0; a < size; a++) for (const row of [true, false]) for (let b = 0; b + 11 <= size; b++)
+      for (const P of [P1, P2]) if (P.every((v, k) => +at(row, a, b + k) === v)) p += 40;
+    for (const row of M) for (const v of row) dark += v;
+    return p + Math.floor(Math.abs(dark * 20 - size * size * 10) / (size * size)) * 10;
+  };
+  let best = 0, bestP = Infinity;
+  for (let m = 0; m < 8; m++) { apply(m); format(m); const pp = penalty(); if (pp < bestP) { bestP = pp; best = m; } apply(m); }
+  apply(best); format(best);
+  return { size, mods: M };
+}
+function showQR(url) {
+  const q = qrMatrix(url), c = $("qrCanvas");
+  if (!q) { $("qrText").textContent = tx("Dieser Link ist zu lang für einen QR-Code.", "This link is too long for a QR code."); }
+  else {
+    const n = q.size + 8, k = Math.max(2, Math.floor(520 / n));
+    c.width = c.height = n * k; const g = c.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.fillStyle = "#0b0f22";
+    q.mods.forEach((row, y) => row.forEach((on, x) => { if (on) g.fillRect((x + 4) * k, (y + 4) * k, k, k); }));
+    $("qrText").textContent = tx("Mit der Handykamera scannen, dann lädt genau dieses Level.", "Scan with a phone camera to open exactly this level.");
+  }
+  c.hidden = !q; $("qrBox").classList.add("show"); $("qrClose").focus();
+}
+const closeQR = () => $("qrBox").classList.remove("show");
+const currentLink = () => location.origin + location.pathname + (mode === "custom" ? "#l=" + customCode : mode === "seed" ? seedHash(L.n, L.seed) : "#heute");
 
 // ---------- Zeichnen ----------
 const cv = $("c"), ctx = cv.getContext("2d");
@@ -1365,6 +1489,7 @@ addEventListener("keydown", ev => {
   if (ev.target.tagName === "INPUT") { if (k === "enter" || k === "escape") ev.target.blur(); return; }   // Tippen im Titelfeld
   if ((ev.ctrlKey || ev.metaKey) && k === "z") { ev.preventDefault(); undo(); return; }
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  if ($("qrBox").classList.contains("show")) { if (k === "escape") closeQR(); return; }
   if ($("levels").classList.contains("show")) { if (k === "escape" || k === "l") closeLevels(); return; }
   if (mode === "edit") {
     if (["BUTTON", "SELECT"].includes(ev.target.tagName) && (k === " " || k === "enter" || k in ARROWS)) return;
@@ -1398,6 +1523,10 @@ document.addEventListener("pointerup", ev => { const b = ev.target.closest("butt
 $("reset").onclick = restart;
 $("tip").onclick = showTip;
 $("shot").onclick = shareBoard;
+$("qrBtn").onclick = () => showQR(currentLink());
+$("eqr").onclick = () => { const code = scrambleForShare(); if (code) showQR(levelLink(withTitle(code))); };
+$("qrClose").onclick = closeQR;
+$("qrBox").addEventListener("pointerdown", ev => { if (ev.target === $("qrBox")) closeQR(); });
 $("again").onclick = restart;
 $("go").onclick = proceed;
 $("share").onclick = shareDaily;
@@ -1443,6 +1572,8 @@ if (EN) {
   document.querySelector("#levels h2").textContent = "Levels";
   set("install", "Install as app"); set("droneBtn", null, "Soft drone under the bells"); set("rand", "Random level");
   set("build", "Build your own"); set("closeLevels", "Close"); set("backup", "Back up progress"); set("restore", "Restore progress");
+  set("qrTitle", "Scan to play"); set("qrClose", "Close"); $("qrCanvas").setAttribute("aria-label", "QR code");
+  set("qrBtn", null, "Show as QR code"); set("eqr", null, "Show as QR code");
   set("shot", "Picture"); $("shot").title = "Share a picture of the solved board";
   set("winTitle", "Light found"); set("again", "Again"); set("share", "Share"); set("go", "Next →");
 }
