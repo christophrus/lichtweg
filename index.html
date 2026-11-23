@@ -747,6 +747,7 @@ function flip(c, isUndo = false) {
   T = nt;
   tone(330 + Math.random() * 40, .12, .08, "triangle"); tone(990, .05, .03, "sine"); buzz(8);
   if (mode === "level" && L.n <= 2 && moves >= 1) $("hint").style.opacity = .55;
+  if (cursorOn && cursor && cursor.x === c.x && cursor.y === c.y) say(describeCell(c));
   if (mode === "daily" && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
 }
 
@@ -1430,10 +1431,31 @@ const nextLevel = () => { if (mode === "level" && L.n < save.unlocked) loadLevel
 const prevLevel = () => { if (mode === "level" && L.n > 1) loadLevel(L.n - 1); };
 
 // Pfeiltasten: zum nächstgelegenen drehbaren Spiegel in dieser Richtung springen, sonst ein Feld weiter.
+// Für Screenreader: was am Auswahlrahmen liegt und wie das Licht dort läuft
+function describeCell(c) {
+  const to = EN ? ["right", "down", "left", "up"] : ["nach rechts", "nach unten", "nach links", "nach oben"];
+  const from = EN ? ["the right", "below", "the left", "above"] : ["rechts", "unten", "links", "oben"];
+  const tilt = c.o === 0 ? " /" : " \\";
+  const name = c.t === MIRROR ? tx("Spiegel", "mirror") + tilt : c.t === SPLIT ? tx("Strahlteiler", "splitter") + tilt
+    : tx("Prisma, helle Seite ", "prism, bright side ") + PRISM_IN[c.r].map(d => (EN ? ["right", "bottom", "left", "top"] : ["rechts", "unten", "links", "oben"])[(d + 2) % 4]).join(tx(" und ", " and "));
+  const dir = (a, b) => { const dx = Math.sign(Math.round((b.x - a.x) * 10)), dy = Math.sign(Math.round((b.y - a.y) * 10)); return DX.findIndex((x, i) => x === dx && DY[i] === dy); };
+  let light = tx("Kein Licht.", "No light.");
+  for (const b of T.beams) {
+    const i = b.pts.findIndex((p, k) => k > 0 && Math.floor(p.x) === c.x && Math.floor(p.y) === c.y);
+    if (i < 0) continue;
+    const din = dir(b.pts[i - 1], b.pts[i]), comes = tx(`Licht kommt von ${from[(din + 2) % 4]}`, `Light comes from ${from[(din + 2) % 4]}`);
+    if (c.t === SPLIT) light = `${comes}${tx(", läuft geradeaus weiter und ", ", goes straight on and ")}${tx("zweigt ", "branches ")}${to[c.o === 0 ? SLASH[din] : BACK[din]]}${tx(" ab", "")}.`;
+    else if (i + 1 < b.pts.length) light = `${comes}${tx(" und geht ", " and goes ")}${to[dir(b.pts[i], b.pts[i + 1])]}.`;
+    else light = `${comes}${tx(" und trifft die Rückseite.", " and hits the back.")}`;
+    break;
+  }
+  return `${tx("Spalte", "Column")} ${c.x + 1}, ${tx("Reihe", "row")} ${c.y + 1}: ${name}. ${light}`;
+}
 function moveCursor(d) {
   if (!cursorOn || !cursor) {
     cursorOn = true;
     if (!cursor) { const m = L.grid.flat().find(rotatable); cursor = m ? { x: m.x, y: m.y } : { x: L.src.x, y: L.src.y }; }
+    const c0 = L.grid[cursor.y][cursor.x]; if (rotatable(c0)) say(describeCell(c0));
     return;
   }
   let best = null, bestScore = Infinity;
@@ -1444,7 +1466,7 @@ function moveCursor(d) {
     const score = along + side * 2;
     if (score < bestScore) { bestScore = score; best = c; }
   }
-  if (best) cursor = { x: best.x, y: best.y };
+  if (best) { cursor = { x: best.x, y: best.y }; say(describeCell(best)); }
   else cursor = { x: Math.max(0, Math.min(L.size - 1, cursor.x + DX[d])), y: Math.max(0, Math.min(L.size - 1, cursor.y + DY[d])) };
 }
 

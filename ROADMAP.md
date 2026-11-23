@@ -39,6 +39,7 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v20.1 – Offline-Pflege:** Der Service Worker hält beide Kopien der Seite aktuell, alter Cache wird geräumt.
 - **v21 – Formen auf dem Strahl:** Farbiges Licht zeigt die Form seines Kristalls, so sind Farbtore auch ohne
   Farbsehen lesbar. Vibration erst nach einer echten Berührung.
+- **v22 – Ansagen beim Spielen:** Screenreader beschreiben das gewählte Teil (Stellung, helle Seite, Lichtweg).
 
 ## Als Nächstes
 
