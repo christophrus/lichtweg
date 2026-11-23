@@ -10,12 +10,13 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v2 – Tagesrätsel:** ein Level pro Tag, für alle gleich (aus dem Datum erzeugt), Serie, Ergebnis teilen, Link `#heute`.
 - **v3 – Komfort:** Rückgängig, Levelübersicht mit Sternen, Bedienung nur mit Tastatur (Auswahlrahmen springt von
   Spiegel zu Spiegel), Kristallformen für Farbfehlsichtige, Ansagen für Screenreader.
+- **v4 – Farbtore** (ab Level 10, Tagesrätsel ab 24.11.2026): Sie lassen nur Licht in ihrer Farbe durch, goldene Tore
+  nur ungefärbtes. Level 1–9 und Tagesrätsel #1 sind unverändert. Spätere Level behalten ihren Aufbau, es kommen nur Tore dazu.
 
 ## Als Nächstes
 
 ### 1. Neue Mechaniken (das Herzstück)
 Jede Mechanik wird im Generator rückwärts gebaut und ist damit automatisch lösbar. Sie wird mit einem kurzen Hinweis-Level eingeführt.
-- **Farbtore:** lassen nur Licht in ihrer Farbe durch. Dadurch zählt die *Reihenfolge* der Kristalle, nicht nur, dass alle getroffen werden.
 - **Strahlteiler:** halbdurchlässige Spiegel teilen das Licht. Zwei Strahlen müssen gleichzeitig zwei Linsen treffen.
 - **Portale:** ein Paar, das den Strahl versetzt weiterführt.
 - **Drehprismen mit vier Stellungen** statt zwei, für spätere Level.

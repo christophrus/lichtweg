@@ -15,6 +15,9 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   Lösungsweg des Tages, alle Züge zählen, auch über Neustarts hinweg. Gelöste Tage nacheinander ergeben eine Serie,
   das Ergebnis lässt sich als Text teilen.
 - Kristalle färben das Licht, das sie durchquert. Bronze-Spiegel mit Nieten sind fest.
+- **Farbtore** (ab Level 10): Sie lassen nur Licht in ihrer Farbe durch, goldene Tore nur ungefärbtes. Das Symbol im
+  Tor zeigt den passenden Kristall. Tore werden erst nach dem fertigen Level gesetzt, und zwar in genau der Farbe, die
+  das Licht dort auf dem Lösungsweg hat. So bleibt jedes Level lösbar.
 - Fortschritt, Sterne und Serie liegen im `localStorage` des Browsers.
 - Lokal: `index.html` öffnen oder `python -m http.server 8765` starten.
 

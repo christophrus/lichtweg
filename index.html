@@ -99,7 +99,9 @@
 const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];          // 0 rechts, 1 unten, 2 links, 3 oben
 const SLASH = [3, 2, 1, 0];                              // Spiegel "/"
 const BACK  = [1, 0, 3, 2];                              // Spiegel "\"
-const EMPTY = 0, WALL = 1, MIRROR = 2, CRYSTAL = 3, SRC = 4, RECV = 5;
+const EMPTY = 0, WALL = 1, MIRROR = 2, CRYSTAL = 3, SRC = 4, RECV = 5, GATE = 6;
+const GOLD = 42;                                         // Farbton des ungefärbten Lichts
+const GATE_LEVEL = 10;                                   // ab hier gibt es Farbtore
 const HUES = [188, 312, 140, 265, 28];                   // Kristallfarben
 
 function rng(seed) {
@@ -124,7 +126,8 @@ function params(n) {
 
 // ---------- Levelgenerator: erst den Lösungsweg legen, dann verwürfeln ----------
 // n bestimmt die Schwierigkeit, seed das konkrete Level (Standard: aus n abgeleitet).
-function generate(n, seed = n * 1000003) {
+function generate(n, seed = n * 1000003, opts = {}) {
+  const gates = opts.gates ?? n >= GATE_LEVEL;
   const p = params(n), S = p.size;
   for (let attempt = 0; attempt < 5000; attempt++) {
     const R = rng(seed + attempt * 7919 + 17);
@@ -185,32 +188,56 @@ function generate(n, seed = n * 1000003) {
     if (isSolved(L, trace(L))) continue;
     L.par = rot.filter(m => m.flipped).length;
     for (const row of grid) for (const c of row) if (c.t === MIRROR) { c.ang = c.o === 0 ? -Math.PI / 4 : Math.PI / 4; c.target = c.ang; }
+    if (gates) addGates(L, n, seed, straight, visited);
     return L;
   }
   throw new Error("Kein Level erzeugbar");
 }
 
+// Farbtore kommen erst nach dem fertigen Level dazu, mit eigenem Zufallsgenerator.
+// Ein Tor auf dem Lösungsweg bekommt genau die Farbe, die das Licht dort in der Lösung hat;
+// die Lösung bleibt also gültig, aber falsch gefärbtes Licht kommt nicht mehr durch.
+function addGates(L, n, seed, straight, visited) {
+  const R = rng(((seed ^ 0x5bd1e995) >>> 0) + 4242), S = L.size;
+  const order = L.crystals.map(c => ({ c, i: straight.findIndex(s => s.x === c.x && s.y === c.y) })).sort((a, b) => a.i - b.i);
+  const colorAt = j => { let col = null; for (const o of order) if (o.i < j) col = o.c; return col; };   // null = Gold
+  const makeGate = (x, y, col) => { L.grid[y][x] = { t: GATE, hue: col ? col.hue : GOLD, shape: col ? col.shape : -1, x, y }; };
+  const cand = R.shuffle(straight.map((s, j) => ({ x: s.x, y: s.y, j })).filter(s => L.grid[s.y][s.x].t === EMPTY));
+  const want = Math.min(1 + Math.floor((n - GATE_LEVEL) / 4), 3), picks = [];
+  const first = cand.find(s => colorAt(s.j)) || cand[0];        // das erste Tor möglichst farbig
+  if (first) picks.push(first);
+  for (const s of cand) { if (picks.length >= want) break; if (!picks.includes(s)) picks.push(s); }
+  for (const s of picks) makeGate(s.x, s.y, colorAt(s.j));
+  const free = [];
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (L.grid[y][x].t === EMPTY && !visited.has(x + y * S)) free.push({ x, y });
+  R.shuffle(free);
+  const cols = [null, ...L.crystals];
+  for (let i = 0; i < Math.min(Math.floor((n - GATE_LEVEL) / 6), 2) && free.length; i++) { const f = free.pop(); makeGate(f.x, f.y, cols[R.int(cols.length)]); }
+}
+
 // ---------- Strahlverfolgung ----------
 function trace(L) {
   const S = L.size; let { x, y, d } = L.src;
-  let px = x + .5, py = y + .5, dist = 0, hit = false;
+  let px = x + .5, py = y + .5, dist = 0, hit = false, hue = GOLD, blocked = null;
   const pts = [{ x: px, y: py }], events = [], seen = new Set();
   for (let i = 0; i < 600; i++) {
     const nx = x + DX[d], ny = y + DY[d];
     if (nx < 0 || ny < 0 || nx >= S || ny >= S) { px += DX[d] * .85; py += DY[d] * .85; dist += .85; break; }
     const c = L.grid[ny][nx];
     if (c.t === WALL || c.t === SRC) { px += DX[d] * .5; py += DY[d] * .5; dist += .5; break; }
+    if (c.t === GATE && c.hue !== hue) { px += DX[d] * .62; py += DY[d] * .62; dist += .62; blocked = c; break; }   // falsche Farbe
     x = nx; y = ny; px = x + .5; py = y + .5; dist += 1;
     const key = (x + y * S) * 4 + d;
     if (seen.has(key)) break;
     seen.add(key);
     if (c.t === MIRROR) { pts.push({ x: px, y: py }); d = c.o === 0 ? SLASH[d] : BACK[d]; }
-    else if (c.t === CRYSTAL) events.push({ dist, cell: c });
+    else if (c.t === CRYSTAL) { events.push({ dist, cell: c }); hue = c.hue; }
+    else if (c.t === GATE) events.push({ dist, cell: c });
     else if (c.t === RECV) { hit = true; events.push({ dist, cell: c }); break; }
   }
   const last = pts[pts.length - 1];
   if (last.x !== px || last.y !== py) pts.push({ x: px, y: py });
-  return { pts, dist, events, hit };
+  return { pts, dist, events, hit, blocked };
 }
 function isSolved(L, T) {
   if (!T.hit) return false;
@@ -274,9 +301,10 @@ function dailySeed(t) {
   h = Math.imul(h ^ (h >>> 16), 0x45d9f3b); h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
   return (h ^ (h >>> 16)) >>> 0;
 }
-const DAILY_MIN_PAR = 4;                       // mindestens so viele verdrehte Spiegel
+const DAILY_MIN_PAR = 4;
+const DAILY_GATES_FROM = "2026-11-24";             // Tagesrätsel #1 bleibt ohne Farbtore                       // mindestens so viele verdrehte Spiegel
 function dailyLevel(t) {
-  for (let k = 0; ; k++) { const lv = generate(DAILY_DIFFICULTY, dailySeed(t) + k * 104729); if (lv.par >= DAILY_MIN_PAR || k > 50) return lv; }
+  for (let k = 0; ; k++) { const lv = generate(DAILY_DIFFICULTY, dailySeed(t) + k * 104729, { gates: dayKey(t) >= DAILY_GATES_FROM }); if (lv.par >= DAILY_MIN_PAR || k > 50) return lv; }
 }
 const starsFor = (m, par) => m <= par ? 3 : m <= par + 2 ? 2 : 1;
 const starText = s => "★".repeat(s) + "☆".repeat(3 - s);
@@ -321,6 +349,7 @@ function loadLevel(n) {
     3: "Verdreht? ↶ oder Z nimmt den letzten Zug zurück.",
     4: "Spiegel mit Nieten sind festgeschraubt.",
     7: "Nicht jeder Spiegel liegt auf dem Weg.",
+    10: "Neu: Farbtore lassen nur Licht in ihrer Farbe durch. Das Symbol zeigt, welcher Kristall es färben muss. Goldene Tore: nur ungefärbtes Licht.",
   };
   $("hint").textContent = hints[n] || ""; $("hint").style.opacity = hints[n] ? 1 : 0;
 }
@@ -481,6 +510,7 @@ function frame(now) {
     say(`Kristall leuchtet: ${L.crystals.filter(k => lit.has(k)).length} von ${L.crystals.length}`); }
   litPrev = lit;
   if (!won && shown >= T.dist && isSolved(L, T)) onWin();
+  if (T.blocked && shown >= T.dist && !T.signaled) { T.signaled = true; tone(146, .35, .07, "sine"); tone(110, .45, .05, "triangle"); say("Ein Farbtor blockiert das Licht."); }
   const secs = beamSections(); const finalHue = secs[secs.length - 1].hue;
   L.recv._hue = finalHue;
 
@@ -515,6 +545,17 @@ function frame(now) {
       ctx.fillStyle = mg; roundRect(-len, -wd / 2, len * 2, wd, wd / 2); ctx.fill();
       ctx.restore();
       if (c.locked) { ctx.fillStyle = "#c9a46a"; for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.beginPath(); ctx.arc(cx + a * cs * .22, cy + b * cs * .22, Math.max(1.5, cs * .03), 0, 6.283); ctx.fill(); } }
+    } else if (c.t === GATE) {
+      const open = lit.has(c), shut = T.blocked === c && shown >= T.dist;
+      const col = (a, l) => `hsla(${c.hue},${c.hue === GOLD ? 95 : 90}%,${l}%,${a})`;
+      roundRect(cx - cs * .38, cy - cs * .38, cs * .76, cs * .76, cs * .16);
+      ctx.fillStyle = col(open ? .26 : shut ? .1 + .18 * Math.abs(Math.sin(t * 9)) : .08, 60); ctx.fill();
+      ctx.lineWidth = Math.max(2, cs * .055); ctx.strokeStyle = col(open ? .95 : .55, open ? 78 : 62); ctx.stroke();
+      ctx.fillStyle = col(.5, 70);   // Pfosten
+      for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.beginPath(); ctx.arc(cx + a * cs * .38, cy + b * cs * .38, Math.max(1.5, cs * .045), 0, 6.283); ctx.fill(); }
+      ctx.save(); ctx.translate(cx, cy); ctx.fillStyle = col(open ? .95 : .65, open ? 85 : 68);
+      if (c.shape < 0) { ctx.beginPath(); ctx.arc(0, 0, cs * .09, 0, 6.283); } else crystalPath(c.shape, cs * .1);
+      ctx.fill(); ctx.restore();
     } else if (c.t === SRC) {
       const pulse = 1 + .08 * Math.sin(t * 3);
       const sg = ctx.createRadialGradient(cx, cy, 0, cx, cy, cs * .6 * pulse); sg.addColorStop(0, "rgba(255,220,140,.9)"); sg.addColorStop(.35, "rgba(255,190,90,.35)"); sg.addColorStop(1, "rgba(255,190,90,0)");
