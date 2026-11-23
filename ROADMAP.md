@@ -34,6 +34,7 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   ruhige Darstellung bei „Bewegung reduzieren“.
 - **v17 – Editor mit Tastatur:** Pfeile, Ziffern für Werkzeuge, Leertaste, Entf, mit Ansagen für Screenreader.
 - **v18 – Pflege:** Regressionstest im Repo (`node tests/regress.js`), Vorschaubild für geteilte Links.
+- **v19 – Teilen mit Gesicht:** Titel für eigene Level im Link, Bild des gelösten Bretts zum Teilen.
 
 ## Als Nächstes
 

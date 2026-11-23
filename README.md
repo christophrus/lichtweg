@@ -30,6 +30,7 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   Teiler, Portale, Prismen und Wände setzen. Nochmal tippen dreht Spiegel, Teiler, Prisma und Quelle, wechselt die Farbe von Kristall
   und Tor oder das Paar eines Portals. Der Editor zeigt, ob der Strahl schon alles erreicht. „Testen“ verdreht die Spiegel und lässt dich selbst lösen. „Link teilen“
   kopiert einen Link, in dem das ganze Level steckt (`#l=…`). Der Entwurf bleibt im Browser gespeichert.
+  Ein Titel (optional) reist im Link mit und erscheint beim Empfänger oben.
   Mit Tastatur: Pfeile wandern Feld für Feld, Ziffern wählen das Werkzeug, Leertaste setzt es, `Entf` radiert, `Z` nimmt zurück.
 - **Portale** (ab Level 35): Licht, das in ein Portal fällt, kommt am Partner in derselben Richtung wieder heraus.
   Punkte unter dem Ring zeigen, welche Portale zusammengehören. Der Generator legt dafür einen Umweg mit neuen Spiegeln
@@ -39,6 +40,7 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   schaltet Ton und Vibration zusammen. Den Klangteppich allein schaltet man in der Levelübersicht aus.
 - **Atmosphäre:** Unter den Glocken liegt ein leiser Klangteppich. Jeder leuchtende Kristall bringt eine eigene Stimme
   dazu. Der Himmel folgt der Uhrzeit: Nacht, Morgenrot, Tag und Abendrot.
+- **Bild teilen:** Nach dem Lösen macht „Bild“ ein Foto vom gelösten Brett mit Ergebniszeile, zum Teilen oder Speichern.
 - **Spielstand sichern:** In der Levelübersicht gibt es einen Code (`LW1:…`), mit dem sich der Fortschritt auf ein
   anderes Gerät mitnehmen lässt. Darüber zeigt ein Kalender die Tagesrätsel der letzten vier Wochen.
 - **Ruhige Darstellung:** Wer im System „Bewegung reduzieren“ eingestellt hat, bekommt kein Flackern, Funkeln oder Kreiseln.

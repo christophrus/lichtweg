@@ -84,6 +84,8 @@
   #tools[hidden] { display:none; }
   #tools .row { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center; }
   #tools button, #tools select { padding:6px 10px; font-size:13px; }
+  #etitle { width:11em; padding:6px 10px; font-size:13px; background:rgba(255,255,255,.06); color:var(--ink);
+    border:1px solid rgba(255,255,255,.12); border-radius:10px; font-family:inherit; }
   #tools select { background:rgba(255,255,255,.06); color:var(--ink); border:1px solid rgba(255,255,255,.12); border-radius:10px; font-family:inherit; }
   #tools select option { background:#10142a; }
   #tools button.sel { border-color:var(--gold); background:rgba(255,210,122,.2); color:var(--gold); }
@@ -120,6 +122,7 @@
   <div class="row">
     <label class="sr-only" for="esize">Größe</label>
     <select id="esize" title="Größe des Bretts"><option value="5">5×5</option><option value="6">6×6</option><option value="7">7×7</option><option value="8">8×8</option><option value="9">9×9</option></select>
+    <input id="etitle" maxlength="40" placeholder="Titel (optional)" aria-label="Titel des Levels" autocomplete="off">
     <button id="eclear">Leeren</button>
     <button id="etest" class="primary">Testen</button>
     <button id="eshare" class="primary">Link teilen</button>
@@ -138,7 +141,7 @@
   <h2 id="winTitle">Licht gefunden</h2>
   <div class="stars" id="winStars"></div>
   <p id="winText"></p>
-  <div class="ctrl"><button id="again">Nochmal</button><button id="share" class="primary">Teilen</button><button id="go" class="primary">Weiter →</button></div>
+  <div class="ctrl"><button id="again">Nochmal</button><button id="share" class="primary">Teilen</button><button id="shot" title="Bild des gelösten Bretts teilen">Bild</button><button id="go" class="primary">Weiter →</button></div>
 </div></div>
 
 <script>
@@ -816,10 +819,34 @@ async function shareText(text, button, label) {
 }
 const levelLink = code => location.origin + location.pathname + "#l=" + code;
 
+// Bild des gelösten Bretts: Ausschnitt der Leinwand mit einer Zeile darunter, geteilt oder heruntergeladen
+async function shareBoard() {
+  const pad = Math.round(cs * .5), size = cs * L.size + pad * 2, foot = Math.round(cs * .9), k = DPR;
+  const c = document.createElement("canvas"); c.width = size * k; c.height = (size + foot) * k;
+  const g = c.getContext("2d");
+  g.fillStyle = "#070a16"; g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(cv, (ox - pad) * k, (oy - pad) * k, size * k, size * k, 0, 0, size * k, size * k);
+  const r = mode === "daily" ? save.daily.results[L.day] : null, st = r ? r.stars : starsFor(moves, L.par), mvs = r ? r.moves : moves;
+  const what = mode === "daily" ? tx(`Tagesrätsel #${L.num}`, `Daily #${L.num}`) : mode === "level" ? `Level ${L.n}`
+    : mode === "seed" ? tx("Zufallslevel", "Random level") : titleOf(customCode || "") ? quoted(titleOf(customCode)) : tx("Eigenes Level", "Custom level");
+  g.scale(k, k); g.textBaseline = "middle"; g.font = `${Math.round(foot * .36)}px system-ui, sans-serif`;
+  g.fillStyle = "#ffd27a"; g.fillText("LICHTWEG", pad, size + foot * .45);
+  g.fillStyle = "#cfd6f0"; g.textAlign = "right";
+  g.fillText(`${what} · ${starText(st)} · ${mvs} ${mv(mvs)}`, size - pad, size + foot * .45);
+  const blob = await new Promise(res => c.toBlob(res, "image/png"));
+  if (!blob) return;
+  const file = new File([blob], "lichtweg.png", { type: "image/png" });
+  if (navigator.canShare?.({ files: [file] }) && matchMedia("(pointer: coarse)").matches) {
+    try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "lichtweg.png" });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
 async function shareDaily() {
   if (mode === "seed") return shareText(tx(`Lichtweg · Zufallslevel, Stufe ${L.n} (Ziel: ${L.par} ${mv(L.par)})\n`, `Lichtweg · random level, tier ${L.n} (target: ${L.par} ${mv(L.par)})\n`)
     + location.origin + location.pathname + seedHash(L.n, L.seed), $("share"), tx("Link teilen", "Share link"));
-  if (mode === "custom") return shareText(tx(`Lichtweg · Ein Level für dich (Ziel: ${L.par} ${mv(L.par)})\n`, `Lichtweg · a level for you (target: ${L.par} ${mv(L.par)})\n`) + levelLink(customCode), $("share"), tx("Link teilen", "Share link"));
+  const tt = titleOf(customCode || ""), named = tt ? " " + quoted(tt) : "";
+  if (mode === "custom") return shareText(tx(`Lichtweg · Ein Level für dich${named} (Ziel: ${L.par} ${mv(L.par)})\n`, `Lichtweg · a level for you${named} (target: ${L.par} ${mv(L.par)})\n`) + levelLink(customCode), $("share"), tx("Link teilen", "Share link"));
   const r = save.daily.results[L.day]; if (!r) return;
   const text = tx(`Lichtweg · Tagesrätsel #${L.num}\n${starText(r.stars)} ${r.moves} Züge (Ziel ${r.par}) · Serie ${save.daily.streak}\n`,
     `Lichtweg · daily #${L.num}\n${starText(r.stars)} ${r.moves} ${mv(r.moves)} (target ${r.par}) · streak ${save.daily.streak}\n`)
@@ -952,13 +979,17 @@ function scrambleForShare() {
   editMsg(tx("Ich finde keine verdrehte Stellung, in der das Licht nicht schon ankommt. Mehr Spiegel einbauen?", "I can't find a scrambled state where the light doesn't already arrive. Add more mirrors?"), true);
   return null;
 }
+// Ein geteiltes Level darf einen Titel tragen: #l=CODE&t=Titel (nur als Text angezeigt)
+const titleOf = code => { const i = code.indexOf("&t="); if (i < 0) return ""; try { return decodeURIComponent(code.slice(i + 3)).trim().slice(0, 40); } catch { return ""; } };
+const withTitle = code => { const t = $("etitle").value.trim().slice(0, 40); return t ? code + "&t=" + encodeURIComponent(t) : code; };
+const quoted = t => tx(`„${t}“`, `“${t}”`);
 function loadCustom(code, fromEditor = false) {
-  const lv = decodeLevel(code);
+  const title = titleOf(code), lv = decodeLevel(code.split("&t=")[0]);
   if (!lv) { loadLevel(save.current || 1); $("hint").textContent = tx("Dieser Level-Link ist leider kaputt.", "Sorry, this level link is broken."); $("hint").style.opacity = 1; layout(); return; }
   mode = "custom"; customCode = code; customFromEditor = fromEditor;
   startPlay(lv);
   setHash("#l=" + code);
-  $("lvl").textContent = fromEditor ? tx("Test: eigenes Level", "Test: your level") : tx("Geteiltes Level", "Shared level");
+  $("lvl").textContent = fromEditor ? "Test: " + (title ? quoted(title) : tx("eigenes Level", "your level")) : title ? quoted(title) : tx("Geteiltes Level", "Shared level");
   $("prev").disabled = $("next").disabled = true; $("daily").classList.remove("active");
   $("hint").textContent = fromEditor ? tx(`So sieht es für andere aus. Ziel: ${lv.par} ${mv(lv.par)}.`, `This is how others will see it. Target: ${lv.par} ${mv(lv.par)}.`)
     : tx(`Jemand hat dieses Level für dich gebaut. Ziel: ${lv.par} ${mv(lv.par)}.`, `Someone built this level for you. Target: ${lv.par} ${mv(lv.par)}.`);
@@ -1331,6 +1362,7 @@ function closeLevels() { $("levels").classList.remove("show"); }
 const ARROWS = { arrowright: 0, arrowdown: 1, arrowleft: 2, arrowup: 3 };
 addEventListener("keydown", ev => {
   const k = ev.key.toLowerCase();
+  if (ev.target.tagName === "INPUT") { if (k === "enter" || k === "escape") ev.target.blur(); return; }   // Tippen im Titelfeld
   if ((ev.ctrlKey || ev.metaKey) && k === "z") { ev.preventDefault(); undo(); return; }
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
   if ($("levels").classList.contains("show")) { if (k === "escape" || k === "l") closeLevels(); return; }
@@ -1365,6 +1397,7 @@ $("levels").addEventListener("pointerdown", ev => { if (ev.target === $("levels"
 document.addEventListener("pointerup", ev => { const b = ev.target.closest("button"); if (b) b.blur(); });
 $("reset").onclick = restart;
 $("tip").onclick = showTip;
+$("shot").onclick = shareBoard;
 $("again").onclick = restart;
 $("go").onclick = proceed;
 $("share").onclick = shareDaily;
@@ -1375,8 +1408,10 @@ $("droneBtn").onclick = () => { droneOff = !droneOff; localStorage.setItem("lich
 droneLabel();
 $("esize").onchange = () => resizeEditor(+$("esize").value);
 $("eclear").onclick = () => { editSnapshot(); updateUndo(); const size = L.size; L = EDIT_DEFAULT(); if (size !== 7) resizeEditor(size); else { T = trace(L); shown = 0; layout(); saveDraft(); editStatus(); } };
-$("etest").onclick = () => { const code = scrambleForShare(); if (code) loadCustom(code, true); };
-$("eshare").onclick = async () => { const code = scrambleForShare(); if (!code) return;
+$("etest").onclick = () => { const code = scrambleForShare(); if (code) loadCustom(withTitle(code), true); };
+$("etitle").value = localStorage.getItem("lichtweg-editor-title") || "";
+$("etitle").oninput = () => localStorage.setItem("lichtweg-editor-title", $("etitle").value);
+$("eshare").onclick = async () => { let code = scrambleForShare(); if (!code) return; code = withTitle(code);
   const ok = await shareText(tx(`Lichtweg · Ein Level für dich\n`, `Lichtweg · a level for you\n`) + levelLink(code), null);
   editMsg(ok === false ? tx("Kopieren hat nicht geklappt. Link: ", "Copying failed. Link: ") + levelLink(code) : tx("Link kopiert – jedes Teilen verdreht die Spiegel neu.", "Link copied – every share scrambles the mirrors anew.")); };
 $("edone").onclick = () => loadLevel(save.current || 1);
@@ -1403,10 +1438,12 @@ if (EN) {
   set("daily", null, "Daily puzzle (T)"); set("prev", null, "Previous level (P)"); set("undo", null, "Undo (Z)");
   set("reset", null, "Restart (R)"); set("tip", null, "Hint: shows a wrongly turned piece, costs one move (H)");
   set("next", null, "Next level (N)"); set("mute", null, "Sound and vibration on/off (M)");
+  $("etitle").placeholder = "Title (optional)"; $("etitle").setAttribute("aria-label", "Level title");
   set("esize", null, "Board size"); document.querySelector('label[for="esize"]').textContent = "Size"; set("eclear", "Clear"); set("etest", "Test"); set("eshare", "Share link"); set("edone", "Done");
   document.querySelector("#levels h2").textContent = "Levels";
   set("install", "Install as app"); set("droneBtn", null, "Soft drone under the bells"); set("rand", "Random level");
   set("build", "Build your own"); set("closeLevels", "Close"); set("backup", "Back up progress"); set("restore", "Restore progress");
+  set("shot", "Picture"); $("shot").title = "Share a picture of the solved board";
   set("winTitle", "Light found"); set("again", "Again"); set("share", "Share"); set("go", "Next →");
 }
 if (EN) { $("langBtn").textContent = "Deutsch"; $("langBtn").lang = "de"; }
