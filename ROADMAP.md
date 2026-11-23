@@ -42,3 +42,9 @@ Was zu schwer, zu selten oder unklar ist, landet hier.
 ## Bewusst nicht geplant
 - Konten, Bestenlisten mit Server, Werbung, Tracking.
 - Zeitdruck. Lichtweg ist ein ruhiges Spiel.
+- Weitere Mechaniken wie bewegliche Teile, Schalter oder Lichtzeit: Mit Spiegeln, Kristallen, Toren, Teilern, Portalen
+  und Prismen ist das Brett ausgereizt. Jedes weitere Teil würde es unübersichtlicher machen, nicht schöner.
+- Erfolge, Abzeichen, Belohnungen: Die Sterne und die Serie reichen. Mehr würde zum Sammeln drängen statt zum Rätseln.
+- Designs und Skins: Lichtweg hat ein Aussehen, und das soll man wiedererkennen.
+- Handgebaute Levelpakete: Der Generator legt unendlich viele faire Level, eigene baut jeder im Editor.
+- Mehrspieler: braucht einen Server. Teilen über Links ist die ruhige Form davon.
