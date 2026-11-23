@@ -50,6 +50,8 @@
   #win.show { opacity:1; pointer-events:auto; visibility:visible; transition:opacity .5s; }
   .card { background:rgba(12,16,34,.82); border:1px solid rgba(255,210,122,.25); border-radius:18px; padding:26px 34px;
     text-align:center; backdrop-filter:blur(6px); box-shadow:0 0 60px rgba(255,190,90,.15); transform:translateY(8px); transition:transform .5s; }
+  /* Höher als der Bildschirm (kleines Handy, quer): innen scrollen statt unten abschneiden */
+  .card { max-height:calc(100vh - 16px); max-height:calc(100dvh - 16px); overflow-y:auto; overscroll-behavior:contain; box-sizing:border-box; }
   #win.show .card { transform:none; }
   .card h2 { margin:0 0 6px; font-weight:300; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); font-size:20px; }
   .stars { font-size:34px; letter-spacing:8px; margin:10px 0 4px; }

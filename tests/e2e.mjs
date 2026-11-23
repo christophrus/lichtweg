@@ -144,6 +144,14 @@ if (engine === "chromium") {
   if (engine === "firefox") await p.mouse.click(turned[0], turned[1]); else await p.touchscreen.tap(turned[0], turned[1]);
   const after = await p.evaluate(([x, y]) => { const c = L.grid.flat().find(rotatable); return c.o; }, turned);
   check("Handy: Tippen dreht den Spiegel", after !== turned[2]);
+  // Levelübersicht ist höher als ein kleines Handy: Sie muss in den Bildschirm passen und innen scrollen
+  await p.setViewportSize({ width: 320, height: 568 });
+  await p.evaluate(() => { save.unlocked = 30; openLevels(); });
+  await p.waitForSelector("#levels.show");
+  const fit = await p.evaluate(() => { const c = $("levels").querySelector(".card"), r = c.getBoundingClientRect();
+    $("feedback").scrollIntoView({ block: "nearest" }); const f = $("feedback").getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, h: innerHeight, last: f.bottom <= innerHeight && f.top >= 0 }; });
+  check("Handy: Levelübersicht passt und scrollt bis unten", fit.top >= 0 && fit.bottom <= fit.h && fit.last, JSON.stringify(fit));
   await ctx.close();
 }
 

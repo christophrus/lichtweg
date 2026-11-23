@@ -71,6 +71,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   heutigen Spielstand in Ruhe. Browser-Test mit festgesetztem Datum.
 - **v27.1 – Wochenkalender:** Der Kalender hat jetzt sieben Spalten (Montag bis Sonntag) mit Wochentagen und
   Tageszahlen; die Felder sind mindestens 24×24 px groß (WCAG 2.5.8), weil man sie jetzt antippt.
+- **v27.2 – Karten scrollen:** Auf kleinen Handys (320×568, 375×667, quer) war das untere Ende der Levelübersicht
+  (Spielstand sichern/laden, Rückmeldung) abgeschnitten und unerreichbar. Karten sind jetzt höchstens so hoch wie
+  der Bildschirm und scrollen innen; der Browser-Test prüft das.
 
 ## Als Nächstes
 
