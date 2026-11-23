@@ -18,6 +18,8 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 - **Farbtore** (ab Level 10): Sie lassen nur Licht in ihrer Farbe durch, goldene Tore nur ungefärbtes. Das Symbol im
   Tor zeigt den passenden Kristall. Tore werden erst nach dem fertigen Level gesetzt, und zwar in genau der Farbe, die
   das Licht dort auf dem Lösungsweg hat. So bleibt jedes Level lösbar.
+- **Strahlteiler** (ab Level 22): drehbare Glasscheiben, die das Licht durchlassen und zugleich spiegeln. Dann gibt es
+  zwei Linsen, und beide müssen leuchten. Auch hier wird der zweite Weg rückwärts gelegt.
 - **Als App:** Lichtweg lässt sich auf dem Handy auf den Homescreen legen („Zum Startbildschirm“ bzw. „Als App
   installieren“ in der Levelübersicht) und läuft danach auch offline. Auf dem Handy vibriert es leicht, der ♪-Schalter
   schaltet Ton und Vibration zusammen.

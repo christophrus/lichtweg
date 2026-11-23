@@ -108,9 +108,10 @@
 const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];          // 0 rechts, 1 unten, 2 links, 3 oben
 const SLASH = [3, 2, 1, 0];                              // Spiegel "/"
 const BACK  = [1, 0, 3, 2];                              // Spiegel "\"
-const EMPTY = 0, WALL = 1, MIRROR = 2, CRYSTAL = 3, SRC = 4, RECV = 5, GATE = 6;
+const EMPTY = 0, WALL = 1, MIRROR = 2, CRYSTAL = 3, SRC = 4, RECV = 5, GATE = 6, SPLIT = 7;
 const GOLD = 42;                                         // Farbton des ungefärbten Lichts
 const GATE_LEVEL = 10;                                   // ab hier gibt es Farbtore
+const SPLIT_LEVEL = 22;                                  // ab hier gibt es Strahlteiler
 const HUES = [188, 312, 140, 265, 28];                   // Kristallfarben
 
 function rng(seed) {
@@ -136,7 +137,7 @@ function params(n) {
 // ---------- Levelgenerator: erst den Lösungsweg legen, dann verwürfeln ----------
 // n bestimmt die Schwierigkeit, seed das konkrete Level (Standard: aus n abgeleitet).
 function generate(n, seed = n * 1000003, opts = {}) {
-  const gates = opts.gates ?? n >= GATE_LEVEL;
+  const gates = opts.gates ?? n >= GATE_LEVEL, splitters = opts.splitters ?? n >= SPLIT_LEVEL;
   const p = params(n), S = p.size;
   for (let attempt = 0; attempt < 5000; attempt++) {
     const R = rng(seed + attempt * 7919 + 17);
@@ -159,15 +160,15 @@ function generate(n, seed = n * 1000003, opts = {}) {
             const nx = x + DX[nd], ny = y + DY[nd]; return inb(nx, ny) && !visited.has(nx + ny * S); });
           if (opts.length) {
             const nd = opts[0];
-            mirrors.push({ x, y, o: SLASH[d] === nd ? 0 : 1 });
+            mirrors.push({ x, y, o: SLASH[d] === nd ? 0 : 1, d });
             d = nd; turns++; since = 0; continue;
           }
           if (!canStraight) break;
         }
-        straight.push({ x, y });
+        straight.push({ x, y, d });
       } else {
         if (!canStraight || (since >= 2 && R.next() < 0.4)) { recv = { x, y }; break; }
-        straight.push({ x, y });
+        straight.push({ x, y, d });
       }
     }
     if (!recv || turns < p.turns || straight.length < p.crystals) continue;
@@ -189,7 +190,7 @@ function generate(n, seed = n * 1000003, opts = {}) {
 
     const rot = pathMirrors.filter(m => !m.locked);
     if (!rot.length) continue;
-    const L = { n, size: S, grid, src, crystals, recv: grid[recv.y][recv.x], par: 0 };
+    const L = { n, size: S, grid, src, crystals, recvs: [grid[recv.y][recv.x]], par: 0 };
     rot.forEach(m => { if (R.next() < 0.65) { m.o ^= 1; m.flipped = true; } });
     let guard = 0;
     while (isSolved(L, trace(L)) && guard++ < rot.length) {
@@ -198,6 +199,7 @@ function generate(n, seed = n * 1000003, opts = {}) {
     L.par = rot.filter(m => m.flipped).length;
     for (const row of grid) for (const c of row) if (c.t === MIRROR) { c.ang = c.o === 0 ? -Math.PI / 4 : Math.PI / 4; c.target = c.ang; }
     if (gates) addGates(L, n, seed, straight, visited);
+    if (splitters) addSplitter(L, n, seed, straight, mirrors, visited);
     return L;
   }
   throw new Error("Kein Level erzeugbar");
@@ -224,32 +226,92 @@ function addGates(L, n, seed, straight, visited) {
   for (let i = 0; i < Math.min(Math.floor((n - GATE_LEVEL) / 6), 2) && free.length; i++) { const f = free.pop(); makeGate(f.x, f.y, cols[R.int(cols.length)]); }
 }
 
-// ---------- Strahlverfolgung ----------
-function trace(L) {
-  const S = L.size; let { x, y, d } = L.src;
-  let px = x + .5, py = y + .5, dist = 0, hit = false, hue = GOLD, blocked = null;
-  const pts = [{ x: px, y: py }], events = [], seen = new Set();
-  for (let i = 0; i < 600; i++) {
-    const nx = x + DX[d], ny = y + DY[d];
-    if (nx < 0 || ny < 0 || nx >= S || ny >= S) { px += DX[d] * .85; py += DY[d] * .85; dist += .85; break; }
-    const c = L.grid[ny][nx];
-    if (c.t === WALL || c.t === SRC) { px += DX[d] * .5; py += DY[d] * .5; dist += .5; break; }
-    if (c.t === GATE && c.hue !== hue) { px += DX[d] * .62; py += DY[d] * .62; dist += .62; blocked = c; break; }   // falsche Farbe
-    x = nx; y = ny; px = x + .5; py = y + .5; dist += 1;
-    const key = (x + y * S) * 4 + d;
-    if (seen.has(key)) break;
-    seen.add(key);
-    if (c.t === MIRROR) { pts.push({ x: px, y: py }); d = c.o === 0 ? SLASH[d] : BACK[d]; }
-    else if (c.t === CRYSTAL) { events.push({ dist, cell: c }); hue = c.hue; }
-    else if (c.t === GATE) events.push({ dist, cell: c });
-    else if (c.t === RECV) { hit = true; events.push({ dist, cell: c }); break; }
+// Strahlteiler: entweder auf ein gerades, leeres Feld des Lösungswegs (der Zweig geht zur Seite ab)
+// oder anstelle eines drehbaren Spiegels des Lösungswegs (gespiegelt wird wie bisher, der durchgelassene
+// Teil bildet den Zweig). Vom Teiler aus führt ein zweiter Weg mit 0–2 Spiegeln zu einer zweiten Linse,
+// nur über Felder, die noch völlig frei sind. Eigener Zufall: der Rest des Levels bleibt, wie er war.
+function addSplitter(L, n, seed, straight, mirrors, visited) {
+  const R = rng(((seed ^ 0x27d4eb2f) >>> 0) + 777), S = L.size;
+  const inb = (x, y) => x >= 0 && y >= 0 && x < S && y < S;
+  const cand = R.shuffle([
+    ...straight.filter(s => L.grid[s.y][s.x].t === EMPTY).map(s => ({ x: s.x, y: s.y, dirs: [(s.d + 1) % 4, (s.d + 3) % 4], d: s.d })),
+    ...mirrors.filter(m => !L.grid[m.y][m.x].locked).map(m => ({ x: m.x, y: m.y, dirs: [m.d], onMirror: true })),
+  ]);
+  for (const s of cand) for (let attempt = 0; attempt < 60; attempt++) {
+    const rd = s.dirs[R.int(s.dirs.length)], used = new Set(), branch = [];
+    const free = (x, y) => inb(x, y) && !visited.has(x + y * S) && !used.has(x + y * S) && L.grid[y][x].t === EMPTY;
+    const want = R.int(3);                      // 0–2 Knicke; bei 0 ist die Drehung des Teilers das Rätsel
+    let x = s.x, y = s.y, d = rd, turns = 0, since = 0, end = null;
+    for (let step = 0; step < S * S; step++) {
+      x += DX[d]; y += DY[d];
+      if (!free(x, y)) break;
+      used.add(x + y * S); since++;
+      const canStraight = free(x + DX[d], y + DY[d]);
+      if (turns < want) {
+        if (R.next() < .5 || !canStraight) {
+          const opts = R.shuffle([(d + 1) % 4, (d + 3) % 4]).filter(nd => free(x + DX[nd], y + DY[nd]));
+          if (opts.length) { branch.push({ x, y, o: SLASH[d] === opts[0] ? 0 : 1 }); d = opts[0]; turns++; since = 0; continue; }
+          if (!canStraight) break;
+        }
+      } else if (!canStraight || (since >= 2 && R.next() < .4)) { end = { x, y }; break; }
+    }
+    if (!end || used.size < 3) continue;          // Zweig mit mindestens drei Feldern, sonst zu billig
+    const old = L.grid[s.y][s.x];
+    const split = L.grid[s.y][s.x] = s.onMirror
+      ? { t: SPLIT, o: old.o, flipped: old.flipped, x: s.x, y: s.y }          // übernimmt Stellung und Wertung des Spiegels
+      : { t: SPLIT, o: SLASH[s.d] === rd ? 0 : 1, x: s.x, y: s.y };
+    const cells = branch.map(m => (L.grid[m.y][m.x] = { t: MIRROR, o: m.o, locked: false, x: m.x, y: m.y }));
+    L.recvs.push(L.grid[end.y][end.x] = { t: RECV, x: end.x, y: end.y });
+    for (const k of used) visited.add(k);
+    const rot = s.onMirror ? cells : [split, ...cells];
+    let added = 0;
+    rot.forEach(c => { if (R.next() < .6) { c.o ^= 1; c.flipped = true; added++; } });
+    if (!added && rot.length) { rot[0].o ^= 1; rot[0].flipped = true; added++; }
+    if (isSolved(L, trace(L))) { const c = rot.find(c => !c.flipped); if (c) { c.o ^= 1; c.flipped = true; added++; } }
+    L.par += added;
+    for (const c of [split, ...cells]) { c.ang = c.o === 0 ? -Math.PI / 4 : Math.PI / 4; c.target = c.ang; }
+    return true;
   }
-  const last = pts[pts.length - 1];
-  if (last.x !== px || last.y !== py) pts.push({ x: px, y: py });
-  return { pts, dist, events, hit, blocked };
+  return false;
+}
+
+// ---------- Strahlverfolgung ----------
+// Mehrere Strahlen: ein Strahlteiler lässt das Licht durch und startet zugleich einen gespiegelten Strahl.
+// Jeder Strahl kennt seinen Start (Entfernung von der Quelle), damit alle gemeinsam wachsen.
+const rotatable = c => !!c && ((c.t === MIRROR && !c.locked) || c.t === SPLIT);
+function trace(L) {
+  const S = L.size, seen = new Set(), beams = [], events = [], blocked = [], hits = new Set();
+  const queue = [{ x: L.src.x, y: L.src.y, d: L.src.d, hue: GOLD, start: 0 }];
+  while (queue.length && beams.length < 32) {
+    const b = queue.shift();
+    let { x, y, d, hue } = b, px = x + .5, py = y + .5, dist = b.start;
+    const pts = [{ x: px, y: py }], bev = [];
+    for (let i = 0; i < 600; i++) {
+      const nx = x + DX[d], ny = y + DY[d];
+      if (nx < 0 || ny < 0 || nx >= S || ny >= S) { px += DX[d] * .85; py += DY[d] * .85; dist += .85; break; }
+      const c = L.grid[ny][nx];
+      if (c.t === WALL || c.t === SRC) { px += DX[d] * .5; py += DY[d] * .5; dist += .5; break; }
+      if (c.t === GATE && c.hue !== hue) { px += DX[d] * .62; py += DY[d] * .62; dist += .62; blocked.push(c); break; }   // falsche Farbe
+      x = nx; y = ny; px = x + .5; py = y + .5; dist += 1;
+      const key = (x + y * S) * 4 + d;
+      if (seen.has(key)) break;
+      seen.add(key);
+      if (c.t === MIRROR) { pts.push({ x: px, y: py }); d = c.o === 0 ? SLASH[d] : BACK[d]; }
+      else if (c.t === SPLIT) { pts.push({ x: px, y: py }); queue.push({ x, y, d: c.o === 0 ? SLASH[d] : BACK[d], hue, start: dist }); bev.push({ dist, cell: c, hue }); }
+      else if (c.t === CRYSTAL) { hue = c.hue; bev.push({ dist, cell: c, hue }); }
+      else if (c.t === GATE) bev.push({ dist, cell: c, hue });
+      else if (c.t === RECV) { hits.add(c); bev.push({ dist, cell: c, hue }); break; }
+    }
+    const last = pts[pts.length - 1];
+    if (last.x !== px || last.y !== py) pts.push({ x: px, y: py });
+    beams.push({ pts, start: b.start, end: dist, hue: b.hue, events: bev });
+    events.push(...bev);
+  }
+  events.sort((a, b) => a.dist - b.dist);
+  return { beams, events, blocked, hits, dist: Math.max(...beams.map(b => b.end)) };
 }
 function isSolved(L, T) {
-  if (!T.hit) return false;
+  if (!L.recvs.every(r => T.hits.has(r))) return false;
   const lit = new Set(T.events.map(e => e.cell));
   return L.crystals.every(c => lit.has(c));
 }
@@ -263,6 +325,17 @@ function commonDist(a, b) {
     d += la;
   }
   return d;
+}
+// Bis zu welcher Entfernung ist das neue Strahlenbild gleich dem alten? Dort setzt die Animation wieder an.
+function divergence(A, B) {
+  let m = Infinity;
+  B.beams.forEach((nb, i) => {
+    const ob = A.beams[i], full = nb.end - nb.start;
+    const same = ob && ob.start === nb.start && ob.hue === nb.hue && ob.pts[0].x === nb.pts[0].x && ob.pts[0].y === nb.pts[0].y;
+    const cd = same ? commonDist(ob.pts, nb.pts) : 0;
+    if (!same || cd < full - 1e-9 || Math.abs((ob.end - ob.start) - full) > 1e-9) m = Math.min(m, nb.start + cd);
+  });
+  return m;
 }
 
 // ---------- Ton ----------
@@ -361,6 +434,7 @@ function loadLevel(n) {
     3: "Verdreht? ↶ oder Z nimmt den letzten Zug zurück.",
     4: "Spiegel mit Nieten sind festgeschraubt.",
     7: "Nicht jeder Spiegel liegt auf dem Weg.",
+    22: "Neu: Strahlteiler aus Glas lassen das Licht durch und spiegeln es zugleich. Jede Linse muss leuchten.",
     10: "Neu: Farbtore lassen nur Licht in ihrer Farbe durch. Das Symbol zeigt, welcher Kristall es färben muss. Goldene Tore: nur ungefärbtes Licht.",
   };
   $("hint").textContent = hints[n] || ""; $("hint").style.opacity = hints[n] ? 1 : 0;
@@ -372,14 +446,14 @@ const say = msg => { $("sr").textContent = ""; setTimeout(() => { $("sr").textCo
 
 // isUndo: Zug zurücknehmen. In Leveln zählt das minus eins, im Tagesrätsel als eigener Zug (fair bleibt fair).
 function flip(c, isUndo = false) {
-  if (won || !c || c.t !== MIRROR || c.locked) return;
+  if (won || !rotatable(c)) return;
   c.o ^= 1;
   if (isUndo) c.target -= Math.PI / 2; else { c.target += Math.PI / 2; undoStack.push(c); }
   moves += isUndo && mode === "level" ? -1 : 1;
   updateUndo();
   $("moves").textContent = moves;
   const nt = trace(L);
-  shown = Math.min(shown, commonDist(T.pts, nt.pts));
+  shown = Math.min(shown, divergence(T, nt));
   T = nt;
   tone(330 + Math.random() * 40, .12, .08, "triangle"); tone(990, .05, .03, "sine"); buzz(8);
   if (mode === "level" && L.n <= 2 && moves >= 1) $("hint").style.opacity = .55;
@@ -392,7 +466,7 @@ function onWin() {
   won = true; updateUndo();
   [0, 2, 4, 7].forEach((i, k) => bell(note(i, 392), k * .11, .1));
   bell(note(5, 392), .55, .08);
-  burst(L.recv._x, L.recv._y, L.recv._hue ?? 45, 70, 1.6); buzz([18, 50, 18, 50, 70]);
+  for (const r of L.recvs) burst(r._x, r._y, r._hue ?? 45, Math.round(70 / L.recvs.length), 1.6); buzz([18, 50, 18, 50, 70]);
   let stars, text;
   if (mode === "level") {
     stars = starsFor(moves, L.par);
@@ -475,32 +549,31 @@ function burst(x, y, hue, n = 24, sp = 1) {
 }
 function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 
-// Strahl in farbigen Abschnitten bis zur gezeigten Länge zeichnen
-function beamSections() {
-  const secs = []; let from = 0, hue = 42;
-  for (const e of T.events) { if (e.dist > shown) break; if (e.cell.t === CRYSTAL) { secs.push({ from, to: e.dist, hue }); from = e.dist; hue = e.cell.hue; } }
-  secs.push({ from, to: shown, hue });
+// Strahl in farbigen Abschnitten bis zur gezeigten Länge zeichnen (Entfernungen ab der Quelle gemessen)
+function beamSections(b) {
+  const secs = [], upto = Math.min(shown, b.end); let from = b.start, hue = b.hue;
+  for (const e of b.events) { if (e.dist > upto) break; if (e.cell.t === CRYSTAL) { secs.push({ from, to: e.dist, hue }); from = e.dist; hue = e.cell.hue; } }
+  secs.push({ from, to: upto, hue });
   return secs;
 }
-function strokeRange(a, b) {
-  const P = T.pts; let acc = 0; ctx.beginPath(); let started = false;
+function strokeRange(beam, a0, b0) {
+  const P = beam.pts, a = a0 - beam.start, b = b0 - beam.start; let acc = 0; ctx.beginPath(); let started = false;
   for (let i = 1; i < P.length; i++) {
     const p0 = P[i - 1], p1 = P[i], len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
     const s = Math.max(a, acc), e = Math.min(b, acc + len);
-    if (e > s) {
+    if (e > s && len > 0) {
       const t0 = (s - acc) / len, t1 = (e - acc) / len;
-      const x0 = p0.x + (p1.x - p0.x) * t0, y0 = p0.y + (p1.y - p0.y) * t0;
-      if (!started) { ctx.moveTo(X(x0), Y(y0)); started = true; }
+      if (!started) { ctx.moveTo(X(p0.x + (p1.x - p0.x) * t0), Y(p0.y + (p1.y - p0.y) * t0)); started = true; }
       ctx.lineTo(X(p0.x + (p1.x - p0.x) * t1), Y(p0.y + (p1.y - p0.y) * t1));
     }
     acc += len; if (acc >= b) break;
   }
   ctx.stroke();
 }
-function pointAt(dd) {
-  const P = T.pts; let acc = 0;
+function pointAt(beam, d0) {
+  const P = beam.pts, dd = d0 - beam.start; let acc = 0;
   for (let i = 1; i < P.length; i++) { const p0 = P[i - 1], p1 = P[i], len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
-    if (acc + len >= dd) { const t = (dd - acc) / len; return { x: X(p0.x + (p1.x - p0.x) * t), y: Y(p0.y + (p1.y - p0.y) * t) }; } acc += len; }
+    if (len > 0 && acc + len >= dd) { const t = (dd - acc) / len; return { x: X(p0.x + (p1.x - p0.x) * t), y: Y(p0.y + (p1.y - p0.y) * t) }; } acc += len; }
   const l = P[P.length - 1]; return { x: X(l.x), y: Y(l.y) };
 }
 
@@ -524,9 +597,8 @@ function frame(now) {
     say(`Kristall leuchtet: ${L.crystals.filter(k => lit.has(k)).length} von ${L.crystals.length}`); }
   litPrev = lit;
   if (!won && shown >= T.dist && isSolved(L, T)) onWin();
-  if (T.blocked && shown >= T.dist && !T.signaled) { T.signaled = true; tone(146, .35, .07, "sine"); tone(110, .45, .05, "triangle"); buzz(30); say("Ein Farbtor blockiert das Licht."); }
-  const secs = beamSections(); const finalHue = secs[secs.length - 1].hue;
-  L.recv._hue = finalHue;
+  if (T.blocked.length && shown >= T.dist && !T.signaled) { T.signaled = true; tone(146, .35, .07, "sine"); tone(110, .45, .05, "triangle"); buzz(30); say("Ein Farbtor blockiert das Licht."); }
+  for (const r of L.recvs) { const e = T.events.find(e => e.cell === r && e.dist <= shown); r._hue = e ? e.hue : GOLD; }
 
   // Brett
   const S = L.size;
@@ -559,8 +631,20 @@ function frame(now) {
       ctx.fillStyle = mg; roundRect(-len, -wd / 2, len * 2, wd, wd / 2); ctx.fill();
       ctx.restore();
       if (c.locked) { ctx.fillStyle = "#c9a46a"; for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.beginPath(); ctx.arc(cx + a * cs * .22, cy + b * cs * .22, Math.max(1.5, cs * .03), 0, 6.283); ctx.fill(); } }
+    } else if (c.t === SPLIT) {
+      c.ang += (c.target - c.ang) * Math.min(1, dt * 16);
+      const hov = hover === c && !won;
+      ctx.fillStyle = hov ? "rgba(150,230,255,.18)" : "rgba(150,220,255,.07)"; ctx.beginPath(); ctx.arc(cx, cy, cs * .36, 0, 6.283); ctx.fill();
+      if (hov) { ctx.strokeStyle = "rgba(170,235,255,.5)"; ctx.lineWidth = 1.5; ctx.stroke(); }
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(c.ang);
+      const len = cs * .4, wd = Math.max(3, cs * .08);
+      roundRect(-len, -wd / 2, len * 2, wd, wd / 2);
+      ctx.fillStyle = "rgba(160,225,255,.28)"; ctx.fill();
+      ctx.setLineDash([Math.max(2, cs * .05), Math.max(2, cs * .04)]);   // gestrichelt = halbdurchlässig
+      ctx.strokeStyle = "rgba(215,245,255,.95)"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.restore();
     } else if (c.t === GATE) {
-      const open = lit.has(c), shut = T.blocked === c && shown >= T.dist;
+      const open = lit.has(c), shut = T.blocked.includes(c) && shown >= T.dist;
       const col = (a, l) => `hsla(${c.hue},${c.hue === GOLD ? 95 : 90}%,${l}%,${a})`;
       roundRect(cx - cs * .38, cy - cs * .38, cs * .76, cs * .76, cs * .16);
       ctx.fillStyle = col(open ? .26 : shut ? .1 + .18 * Math.abs(Math.sin(t * 9)) : .08, 60); ctx.fill();
@@ -583,17 +667,20 @@ function frame(now) {
   // Lichtstrahl (additiv)
   ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round"; ctx.lineJoin = "round";
   const flick = .9 + .1 * Math.sin(t * 23) * Math.sin(t * 7);
-  for (const s of secs) {
-    if (s.to <= s.from) continue;
-    const layers = [[.34, .07], [.17, .16], [.07, .55], [.025, .95]];
-    layers.forEach(([w, a], i) => {
-      ctx.lineWidth = Math.max(1, cs * w);
-      ctx.strokeStyle = i === 3 ? `rgba(255,255,255,${a * flick})` : `hsla(${s.hue},95%,${s.hue === 42 ? 66 : 62}%,${a * flick})`;
-      strokeRange(s.from, s.to);
-    });
+  for (const b of T.beams) {
+    if (shown <= b.start) continue;
+    for (const s of beamSections(b)) {
+      if (s.to <= s.from) continue;
+      const layers = [[.34, .07], [.17, .16], [.07, .55], [.025, .95]];
+      layers.forEach(([w, a], i) => {
+        ctx.lineWidth = Math.max(1, cs * w);
+        ctx.strokeStyle = i === 3 ? `rgba(255,255,255,${a * flick})` : `hsla(${s.hue},95%,${s.hue === GOLD ? 66 : 62}%,${a * flick})`;
+        strokeRange(b, s.from, s.to);
+      });
+    }
+    if (shown < b.end) { const h = pointAt(b, shown), hg = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, cs * .35);
+      hg.addColorStop(0, "rgba(255,255,255,.9)"); hg.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(h.x, h.y, cs * .35, 0, 6.283); ctx.fill(); }
   }
-  if (shown < T.dist) { const h = pointAt(shown), hg = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, cs * .35);
-    hg.addColorStop(0, "rgba(255,255,255,.9)"); hg.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(h.x, h.y, cs * .35, 0, 6.283); ctx.fill(); }
   ctx.restore();
 
   // Kristalle & Linse über dem Strahl
@@ -611,7 +698,7 @@ function frame(now) {
     ctx.strokeStyle = on ? "rgba(255,255,255,.6)" : "rgba(255,255,255,.14)"; ctx.lineWidth = 1 / .45; ctx.stroke();
     ctx.restore();
   }
-  { const c = L.recv, on = lit.has(c), hue = on ? finalHue : 42;
+  for (const c of L.recvs) { const on = lit.has(c), hue = on ? c._hue : GOLD;
     if (on) { ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.translate(c._x, c._y); ctx.rotate(t * .6);
       for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.fillStyle = `hsla(${hue},100%,70%,${.12 + .08 * Math.sin(t * 3 + i)})`;
         ctx.beginPath(); ctx.moveTo(cs * .2, -cs * .04); ctx.lineTo(cs * (.85 + .1 * Math.sin(t * 2 + i * 1.7)), 0); ctx.lineTo(cs * .2, cs * .04); ctx.fill(); }
@@ -646,7 +733,7 @@ function cellAt(ev) {
   const x = Math.floor((ev.clientX - ox) / cs), y = Math.floor((ev.clientY - oy) / cs);
   return x >= 0 && y >= 0 && x < L.size && y < L.size ? L.grid[y][x] : null;
 }
-cv.addEventListener("pointermove", ev => { hover = cellAt(ev); cv.style.cursor = hover && hover.t === MIRROR && !hover.locked && !won ? "pointer" : "default"; });
+cv.addEventListener("pointermove", ev => { hover = cellAt(ev); cv.style.cursor = rotatable(hover) && !won ? "pointer" : "default"; });
 cv.addEventListener("pointerdown", ev => { audio(); cursorOn = false; flip(cellAt(ev)); });
 const restart = () => mode === "daily" ? loadDaily() : loadLevel(L.n);
 const proceed = () => mode === "daily" ? loadLevel(save.current || 1) : loadLevel(L.n + 1);
@@ -658,12 +745,12 @@ const prevLevel = () => { if (mode === "level" && L.n > 1) loadLevel(L.n - 1); }
 function moveCursor(d) {
   if (!cursorOn || !cursor) {
     cursorOn = true;
-    if (!cursor) { const m = L.grid.flat().find(c => c.t === MIRROR && !c.locked); cursor = m ? { x: m.x, y: m.y } : { x: L.src.x, y: L.src.y }; }
+    if (!cursor) { const m = L.grid.flat().find(rotatable); cursor = m ? { x: m.x, y: m.y } : { x: L.src.x, y: L.src.y }; }
     return;
   }
   let best = null, bestScore = Infinity;
   for (const c of L.grid.flat()) {
-    if (c.t !== MIRROR || c.locked) continue;
+    if (!rotatable(c)) continue;
     const vx = c.x - cursor.x, vy = c.y - cursor.y, along = vx * DX[d] + vy * DY[d], side = Math.abs(vx * DY[d] - vy * DX[d]);
     if (along <= 0 || side > along * 2) continue;
     const score = along + side * 2;

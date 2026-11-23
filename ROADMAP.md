@@ -14,12 +14,13 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   nur ungefärbtes. Level 1–9 und Tagesrätsel #1 sind unverändert. Spätere Level behalten ihren Aufbau, es kommen nur Tore dazu.
 - **v5 – Als App:** Manifest, Icons, Service Worker (offline spielbar), Installieren-Knopf, Vibration, sichere
   Ränder für Notch-Handys.
+- **v6 – Strahlteiler** (ab Level 22): drehbare Glasscheiben teilen das Licht, zwei Linsen müssen leuchten.
+  Ein Teiler sitzt auf einem freien Feld oder ersetzt einen Spiegel des Lösungswegs. Alles Bisherige bleibt.
 
 ## Als Nächstes
 
 ### 1. Neue Mechaniken (das Herzstück)
 Jede Mechanik wird im Generator rückwärts gebaut und ist damit automatisch lösbar. Sie wird mit einem kurzen Hinweis-Level eingeführt.
-- **Strahlteiler:** halbdurchlässige Spiegel teilen das Licht. Zwei Strahlen müssen gleichzeitig zwei Linsen treffen.
 - **Portale:** ein Paar, das den Strahl versetzt weiterführt.
 - **Drehprismen mit vier Stellungen** statt zwei, für spätere Level.
 
