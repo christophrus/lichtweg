@@ -26,12 +26,13 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v11 – Prismen** (ab Level 45): einseitige Spiegel mit vier Stellungen. Nur die helle Seite spiegelt, die Rückseite
   schluckt das Licht. Ein Prisma kann bis zu drei Tipper brauchen. Lösungsweg und Level vor 45 bleiben unverändert.
 - **v12 – Statistik** in der Levelübersicht: perfekte Level, Tagesrätsel, längste Serie, Zufallslevel.
+- **v13 – Sonntagsrätsel** (ab 29.11.2026): sonntags mit Strahlteiler und Prisma. Werktage bleiben, wie sie waren.
 
 ## Als Nächstes
 
 Neue Mechaniken werden im Generator rückwärts gebaut und sind damit automatisch lösbar. Sie kommen mit einem
 kurzen Hinweis-Level. Ideen, die noch reifen:
-- Tagesrätsel mit den neueren Mechaniken, sobald sie sich bewährt haben.
+- Portale auch im Tagesrätsel, falls sie sich in den Leveln bewähren.
 
 ## Bewusst nicht geplant
 - Konten, Bestenlisten mit Server, Werbung, Tracking.

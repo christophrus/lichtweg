@@ -529,9 +529,12 @@ function dailySeed(t) {
   return (h ^ (h >>> 16)) >>> 0;
 }
 const DAILY_MIN_PAR = 4;
-const DAILY_GATES_FROM = "2026-11-24";             // Tagesrätsel #1 bleibt ohne Farbtore                       // mindestens so viele verdrehte Spiegel
+const DAILY_GATES_FROM = "2026-11-24";             // Tagesrätsel #1 bleibt ohne Farbtore
+const DAILY_SUNDAY_FROM = "2026-11-29";           // ab dann: sonntags mit Strahlteiler und Prisma
+const isSunday = t => dayKey(t) >= DAILY_SUNDAY_FROM && new Date(t.y, t.m - 1, t.d).getDay() === 0;
 function dailyLevel(t) {
-  for (let k = 0; ; k++) { const lv = generate(DAILY_DIFFICULTY, dailySeed(t) + k * 104729, { gates: dayKey(t) >= DAILY_GATES_FROM }); if (lv.par >= DAILY_MIN_PAR || k > 50) return lv; }
+  const sun = isSunday(t), opts = { gates: dayKey(t) >= DAILY_GATES_FROM, splitters: sun, portals: false, prisms: sun };
+  for (let k = 0; ; k++) { const lv = generate(DAILY_DIFFICULTY, dailySeed(t) + k * 104729, opts); if (lv.par >= DAILY_MIN_PAR || k > 50) return lv; }
 }
 const starsFor = (m, par) => m <= par ? 3 : m <= par + 2 ? 2 : 1;
 const starText = s => "★".repeat(s) + "☆".repeat(3 - s);
@@ -612,7 +615,8 @@ function loadDaily() {
   $("daily").classList.add("active");
   $("hint").textContent = done
     ? `Heute gelöst: ${done.moves} Züge ${starText(done.stars)}. Weitere Versuche zählen nicht.`
-    : "Jeden Tag ein neues Rätsel, für alle gleich. Es zählen alle Züge bis zur Lösung, auch über Neustarts hinweg.";
+    : (isSunday(t) ? "Sonntagsrätsel: heute mit Strahlteiler und Prisma. " : "Jeden Tag ein neues Rätsel, für alle gleich. ")
+      + "Es zählen alle Züge bis zur Lösung, auch über Neustarts hinweg.";
   $("hint").style.opacity = 1;
   layout();
 }

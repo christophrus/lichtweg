@@ -13,7 +13,7 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   „Ziel“ ist die Zahl der verdrehten Spiegel.
 - **Tagesrätsel (☀):** jeden Tag ein Rätsel, für alle gleich, aus dem Datum erzeugt. Gewertet wird der erste
   Lösungsweg des Tages, alle Züge zählen, auch über Neustarts hinweg. Gelöste Tage nacheinander ergeben eine Serie,
-  das Ergebnis lässt sich als Text teilen.
+  das Ergebnis lässt sich als Text teilen. Ab dem 29.11.2026 ist sonntags ein Sonntagsrätsel mit Strahlteiler und Prisma.
 - Kristalle färben das Licht, das sie durchquert. Bronze-Spiegel mit Nieten sind fest.
 - **Farbtore** (ab Level 10): Sie lassen nur Licht in ihrer Farbe durch, goldene Tore nur ungefärbtes. Das Symbol im
   Tor zeigt den passenden Kristall. Tore werden erst nach dem fertigen Level gesetzt, und zwar in genau der Farbe, die
