@@ -104,6 +104,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   Jeder Tab schrieb seinen ganzen Stand, der ältere überschrieb den neueren. Jetzt wird beim Speichern zusammengeführt
   (höchstes Level, beste Sterne, alle Tagesrätsel, jüngere Serie), und ein offener Tab übernimmt Änderungen des
   anderen sofort. Browser-Test mit zwei Tabs.
+- **v28.4 – Geladener Spielstand bleibt geladen:** Mit v28.3 hätte ein zweiter offener Tab den alten Fortschritt in
+  einen frisch geladenen Spielstand zurückgemischt. „Spielstand laden“ setzt jetzt eine neue Generation; Tabs
+  übernehmen sie vollständig, statt zu mischen.
 
 ## Als Nächstes
 

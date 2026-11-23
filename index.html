@@ -606,6 +606,11 @@ const save = (() => {
 // Ergebnis bleibt), die Serie mit dem jüngeren letzten Tag, der weitere Stand des heutigen Rätsels.
 function mergeSave(a, b) {
   if (!isObj(b)) return a;
+  // Ein geladener Spielstand (neuere Generation) ersetzt bewusst alles – nicht mit dem alten mischen
+  if ((b.gen || 0) > (a.gen || 0)) { const keep = { current: a.current, mode: a.mode };
+    for (const k of Object.keys(a)) delete a[k]; Object.assign(a, b, keep);
+    if (a.current > a.unlocked) a.current = a.unlocked; return a; }
+  if ((b.gen || 0) < (a.gen || 0)) return a;
   a.unlocked = Math.max(a.unlocked, b.unlocked | 0);
   for (const [k, v] of Object.entries(b.stars || {})) if (typeof v === "number") a.stars[k] = Math.max(a.stars[k] || 0, v);
   if (a.randomSolved || b.randomSolved) a.randomSolved = Math.max(a.randomSolved || 0, b.randomSolved || 0);
@@ -1869,7 +1874,7 @@ $("restore").onclick = () => {
   try {
     const o = JSON.parse(decodeURIComponent(escape(atob(code.trim().replace(/^LW1:/, "")))));
     if (!isObj(o) || typeof o.unlocked !== "number" || !isObj(o.stars)) throw 0;
-    store.set("lichtweg", JSON.stringify(cleanSave(o))); location.reload();
+    store.set("lichtweg", JSON.stringify(Object.assign(cleanSave(o), { gen: Date.now() }))); location.reload();
   } catch { alert(tx("Dieser Code passt leider nicht.", "Sorry, that code doesn't work.")); }
 };
 $("langBtn").onclick = () => { store.set("lichtweg-lang", EN ? "de" : "en"); location.reload(); };
