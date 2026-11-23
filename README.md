@@ -38,6 +38,9 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   schaltet Ton und Vibration zusammen. Den Klangteppich allein schaltet man in der Levelübersicht aus.
 - **Atmosphäre:** Unter den Glocken liegt ein leiser Klangteppich. Jeder leuchtende Kristall bringt eine eigene Stimme
   dazu. Der Himmel folgt der Uhrzeit: Nacht, Morgenrot, Tag und Abendrot.
+- **Spielstand sichern:** In der Levelübersicht gibt es einen Code (`LW1:…`), mit dem sich der Fortschritt auf ein
+  anderes Gerät mitnehmen lässt. Darüber zeigt ein Kalender die Tagesrätsel der letzten vier Wochen.
+- **Ruhige Darstellung:** Wer im System „Bewegung reduzieren“ eingestellt hat, bekommt kein Flackern, Funkeln oder Kreiseln.
 - **Sprache:** Deutsch oder Englisch, je nach Browser. Umschalten in der Levelübersicht.
 - Fortschritt, Sterne und Serie liegen im `localStorage` des Browsers. Die Levelübersicht zeigt eine kleine Statistik
   (perfekte Level, gelöste Tagesrätsel, längste Serie, Zufallslevel).
