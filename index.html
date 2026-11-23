@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Lichtweg</title>
+<style>
+  :root { --gold:#ffd27a; --ink:#e9ecf5; --dim:#8b93ad; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:#070a16; color:var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif; overflow:hidden; user-select:none; }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:manipulation; }
+  #hud { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px; pointer-events:none; gap:12px; }
+  #hud > * { pointer-events:auto; }
+  .title { font-weight:300; letter-spacing:.32em; text-transform:uppercase; font-size:14px; color:var(--gold);
+    text-shadow:0 0 14px rgba(255,200,110,.5); }
+  .title small { display:block; letter-spacing:.12em; color:var(--dim); font-size:12px; text-transform:none; margin-top:3px; }
+  .ctrl { display:flex; gap:8px; align-items:center; }
+  button { background:rgba(255,255,255,.06); color:var(--ink); border:1px solid rgba(255,255,255,.12);
+    border-radius:10px; padding:8px 12px; font-size:15px; cursor:pointer; transition:background .15s, opacity .15s; font-family:inherit; }
+  button:hover:not(:disabled) { background:rgba(255,255,255,.14); }
+  button:disabled { opacity:.3; cursor:default; }
+  #stats { font-variant-numeric:tabular-nums; color:var(--dim); font-size:14px; min-width:120px; text-align:center; }
+  #stats b { color:var(--ink); font-weight:600; }
+  #hint { position:fixed; bottom:22px; left:0; right:0; text-align:center; color:var(--dim); font-size:14px;
+    transition:opacity .8s; pointer-events:none; padding:0 20px; }
+  #win { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; opacity:0; transition:opacity .5s; }
+  #win.show { opacity:1; pointer-events:auto; }
+  .card { background:rgba(12,16,34,.82); border:1px solid rgba(255,210,122,.25); border-radius:18px; padding:26px 34px;
+    text-align:center; backdrop-filter:blur(6px); box-shadow:0 0 60px rgba(255,190,90,.15); transform:translateY(8px); transition:transform .5s; }
+  #win.show .card { transform:none; }
+  .card h2 { margin:0 0 6px; font-weight:300; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); font-size:20px; }
+  .stars { font-size:34px; letter-spacing:8px; margin:10px 0 4px; }
+  .stars .on { color:var(--gold); text-shadow:0 0 16px rgba(255,200,110,.8); }
+  .stars .off { color:rgba(255,255,255,.12); }
+  .card p { color:var(--dim); margin:6px 0 18px; font-size:14px; }
+  .card .ctrl { justify-content:center; }
+  .primary { background:rgba(255,210,122,.18); border-color:rgba(255,210,122,.5); }
+  @media (max-width: 560px) {
+    #hud { flex-wrap:wrap; padding:10px 12px; }
+    #stats { order:3; width:100%; text-align:left; min-width:0; }
+    button { padding:7px 10px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div class="title">Lichtweg<small id="lvl">Level 1</small></div>
+  <div id="stats">Züge <b id="moves">0</b> · Ziel <b id="par">0</b></div>
+  <div class="ctrl">
+    <button id="prev" title="Vorheriges Level (←)">‹</button>
+    <button id="reset" title="Neu starten (R)">↺</button>
+    <button id="next" title="Nächstes Level (→)">›</button>
+    <button id="mute" title="Ton an/aus (M)">♪</button>
+  </div>
+</div>
+<div id="hint"></div>
+<div id="win"><div class="card">
+  <h2>Licht gefunden</h2>
+  <div class="stars" id="winStars"></div>
+  <p id="winText"></p>
+  <div class="ctrl"><button id="again">Nochmal</button><button id="go" class="primary">Weiter →</button></div>
+</div></div>
+
+<script>
+"use strict";
+// ---------- Grundlagen ----------
+const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];          // 0 rechts, 1 unten, 2 links, 3 oben
+const SLASH = [3, 2, 1, 0];                              // Spiegel "/"
+const BACK  = [1, 0, 3, 2];                              // Spiegel "\"
+const EMPTY = 0, WALL = 1, MIRROR = 2, CRYSTAL = 3, SRC = 4, RECV = 5;
+const HUES = [188, 312, 140, 265, 28];                   // Kristallfarben
+
+function rng(seed) {
+  let s = seed >>> 0;
+  const next = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  return { next, int: n => Math.floor(next() * n),
+    shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(next() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; } };
+}
+
+function params(n) {
+  return {
+    size: Math.min(5 + Math.floor((n - 1) / 3), 9),
+    turns: Math.min(2 + Math.floor((n - 1) * 0.7), 12),
+    crystals: Math.min(1 + Math.floor((n - 1) / 3), 4),
+    decoys: Math.min(Math.floor((n - 1) * 0.7), 12),
+    walls: Math.min(1 + Math.floor(n / 4), 8),
+    lock: n >= 4 ? 0.25 : 0,
+  };
+}
+
+// ---------- Levelgenerator: erst den Lösungsweg legen, dann verwürfeln ----------
+function generate(n) {
+  const p = params(n), S = p.size;
+  for (let attempt = 0; attempt < 5000; attempt++) {
+    const R = rng(n * 1000003 + attempt * 7919 + 17);
+    const inb = (x, y) => x >= 0 && y >= 0 && x < S && y < S;
+    const side = R.int(4), k = 1 + R.int(S - 2);
+    let [x, y, d] = side === 0 ? [0, k, 0] : side === 1 ? [k, 0, 1] : side === 2 ? [S - 1, k, 2] : [k, S - 1, 3];
+    const src = { x, y, d };
+    const visited = new Set([x + y * S]);
+    const straight = [], mirrors = [];
+    let turns = 0, since = 0, recv = null;
+    for (let step = 0; step < S * S; step++) {
+      x += DX[d]; y += DY[d];
+      if (!inb(x, y) || visited.has(x + y * S)) break;
+      visited.add(x + y * S); since++;
+      const fx = x + DX[d], fy = y + DY[d];
+      const canStraight = inb(fx, fy) && !visited.has(fx + fy * S);
+      if (turns < p.turns) {
+        if (R.next() < 0.5 || !canStraight) {
+          const opts = R.shuffle([(d + 1) % 4, (d + 3) % 4]).filter(nd => {
+            const nx = x + DX[nd], ny = y + DY[nd]; return inb(nx, ny) && !visited.has(nx + ny * S); });
+          if (opts.length) {
+            const nd = opts[0];
+            mirrors.push({ x, y, o: SLASH[d] === nd ? 0 : 1 });
+            d = nd; turns++; since = 0; continue;
+          }
+          if (!canStraight) break;
+        }
+        straight.push({ x, y });
+      } else {
+        if (!canStraight || (since >= 2 && R.next() < 0.4)) { recv = { x, y }; break; }
+        straight.push({ x, y });
+      }
+    }
+    if (!recv || turns < p.turns || straight.length < p.crystals) continue;
+
+    const grid = Array.from({ length: S }, () => Array.from({ length: S }, () => ({ t: EMPTY })));
+    grid[src.y][src.x] = { t: SRC, d: src.d };
+    grid[recv.y][recv.x] = { t: RECV };
+    const crystals = [];
+    R.shuffle(straight.slice()).slice(0, p.crystals).forEach((c, i) => {
+      const cell = { t: CRYSTAL, hue: HUES[i % HUES.length], x: c.x, y: c.y }; grid[c.y][c.x] = cell; crystals.push(cell); });
+    const pathMirrors = mirrors.map(m => {
+      const cell = { t: MIRROR, o: m.o, locked: R.next() < p.lock, x: m.x, y: m.y }; grid[m.y][m.x] = cell; return cell; });
+    const free = [];
+    for (let yy = 0; yy < S; yy++) for (let xx = 0; xx < S; xx++) if (grid[yy][xx].t === EMPTY && !visited.has(xx + yy * S)) free.push({ x: xx, y: yy });
+    R.shuffle(free);
+    for (let i = 0; i < p.decoys && free.length; i++) { const c = free.pop();
+      grid[c.y][c.x] = { t: MIRROR, o: R.int(2), locked: R.next() < p.lock, x: c.x, y: c.y }; }
+    for (let i = 0; i < p.walls && free.length; i++) { const c = free.pop(); grid[c.y][c.x] = { t: WALL }; }
+
+    const rot = pathMirrors.filter(m => !m.locked);
+    if (!rot.length) continue;
+    const L = { n, size: S, grid, src, crystals, recv: grid[recv.y][recv.x], par: 0 };
+    rot.forEach(m => { if (R.next() < 0.65) { m.o ^= 1; m.flipped = true; } });
+    let guard = 0;
+    while (isSolved(L, trace(L)) && guard++ < rot.length) {
+      const m = rot.find(m => !m.flipped); if (!m) break; m.o ^= 1; m.flipped = true; }
+    if (isSolved(L, trace(L))) continue;
+    L.par = rot.filter(m => m.flipped).length;
+    for (const row of grid) for (const c of row) if (c.t === MIRROR) { c.ang = c.o === 0 ? -Math.PI / 4 : Math.PI / 4; c.target = c.ang; }
+    return L;
+  }
+  throw new Error("Kein Level erzeugbar");
+}
+
+// ---------- Strahlverfolgung ----------
+function trace(L) {
+  const S = L.size; let { x, y, d } = L.src;
+  let px = x + .5, py = y + .5, dist = 0, hit = false;
+  const pts = [{ x: px, y: py }], events = [], seen = new Set();
+  for (let i = 0; i < 600; i++) {
+    const nx = x + DX[d], ny = y + DY[d];
+    if (nx < 0 || ny < 0 || nx >= S || ny >= S) { px += DX[d] * .85; py += DY[d] * .85; dist += .85; break; }
+    const c = L.grid[ny][nx];
+    if (c.t === WALL || c.t === SRC) { px += DX[d] * .5; py += DY[d] * .5; dist += .5; break; }
+    x = nx; y = ny; px = x + .5; py = y + .5; dist += 1;
+    const key = (x + y * S) * 4 + d;
+    if (seen.has(key)) break;
+    seen.add(key);
+    if (c.t === MIRROR) { pts.push({ x: px, y: py }); d = c.o === 0 ? SLASH[d] : BACK[d]; }
+    else if (c.t === CRYSTAL) events.push({ dist, cell: c });
+    else if (c.t === RECV) { hit = true; events.push({ dist, cell: c }); break; }
+  }
+  const last = pts[pts.length - 1];
+  if (last.x !== px || last.y !== py) pts.push({ x: px, y: py });
+  return { pts, dist, events, hit };
+}
+function isSolved(L, T) {
+  if (!T.hit) return false;
+  const lit = new Set(T.events.map(e => e.cell));
+  return L.crystals.every(c => lit.has(c));
+}
+function commonDist(a, b) {
+  let d = 0;
+  for (let i = 1; i < Math.min(a.length, b.length); i++) {
+    const a0 = a[i - 1], a1 = a[i], b1 = b[i];
+    if (Math.sign(a1.x - a0.x) !== Math.sign(b1.x - a0.x) || Math.sign(a1.y - a0.y) !== Math.sign(b1.y - a0.y)) return d;
+    const la = Math.hypot(a1.x - a0.x, a1.y - a0.y), lb = Math.hypot(b1.x - a0.x, b1.y - a0.y);
+    if (Math.abs(la - lb) > 1e-6) return d + Math.min(la, lb);
+    d += la;
+  }
+  return d;
+}
+
+// ---------- Ton ----------
+let ac = null, master = null, muted = localStorage.getItem("lichtweg-muted") === "1";
+function audio() {
+  if (!ac) {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value = .5;
+    const delay = ac.createDelay(), fb = ac.createGain(), wet = ac.createGain();
+    delay.delayTime.value = .23; fb.gain.value = .32; wet.gain.value = .35;
+    master.connect(ac.destination); master.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(ac.destination);
+  }
+  if (ac.state === "suspended") ac.resume();
+  return ac;
+}
+function tone(freq, dur, vol = .15, type = "sine", delay = 0) {
+  if (muted) return;
+  const a = audio(), t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .008); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .05);
+}
+const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
+const note = (i, base = 523.25) => base * Math.pow(2, PENTA[i % PENTA.length] / 12);
+function bell(f, delay = 0, vol = .12) { tone(f, 1.6, vol, "sine", delay); tone(f * 2.01, .9, vol * .35, "sine", delay); tone(f * 3.98, .4, vol * .12, "sine", delay); }
+
+// ---------- Zustand ----------
+const save = JSON.parse(localStorage.getItem("lichtweg") || '{"unlocked":1,"stars":{},"current":1}');
+const persist = () => localStorage.setItem("lichtweg", JSON.stringify(save));
+let L, T, shown = 0, moves = 0, won = false, litPrev = new Set(), hover = null, particles = [], hintTimer = 0, winTimer = 0;
+
+const $ = id => document.getElementById(id);
+function loadLevel(n) {
+  n = Math.max(1, Math.min(n, save.unlocked));
+  L = generate(n); T = trace(L); shown = 0; moves = 0; won = false; litPrev = new Set(); particles = [];
+  clearTimeout(winTimer);
+  save.current = n; persist();
+  $("win").classList.remove("show");
+  $("lvl").textContent = "Level " + n + (save.stars[n] ? "  " + "★".repeat(save.stars[n]) : "");
+  $("par").textContent = L.par; $("moves").textContent = 0;
+  $("prev").disabled = n <= 1; $("next").disabled = n >= save.unlocked;
+  const hints = {
+    1: "Tippe auf einen Spiegel, um ihn zu drehen. Lenke das Licht durch den Kristall in die Linse.",
+    2: "Jeder Kristall färbt das Licht, das ihn durchquert.",
+    4: "Spiegel mit Nieten sind festgeschraubt.",
+    7: "Nicht jeder Spiegel liegt auf dem Weg.",
+  };
+  $("hint").textContent = hints[n] || ""; $("hint").style.opacity = hints[n] ? 1 : 0;
+  layout();
+}
+
+function flip(c) {
+  if (won || !c || c.t !== MIRROR || c.locked) return;
+  c.o ^= 1; c.target += Math.PI / 2; moves++;
+  $("moves").textContent = moves;
+  const nt = trace(L);
+  shown = Math.min(shown, commonDist(T.pts, nt.pts));
+  T = nt;
+  tone(330 + Math.random() * 40, .12, .08, "triangle"); tone(990, .05, .03, "sine");
+  if (L.n <= 2 && moves >= 1) $("hint").style.opacity = .55;
+}
+
+function onWin() {
+  won = true;
+  const stars = moves <= L.par ? 3 : moves <= L.par + 2 ? 2 : 1;
+  save.stars[L.n] = Math.max(save.stars[L.n] || 0, stars);
+  save.unlocked = Math.max(save.unlocked, L.n + 1); persist();
+  $("next").disabled = false;
+  [0, 2, 4, 7].forEach((i, k) => bell(note(i, 392), k * .11, .1));
+  bell(note(5, 392), .55, .08);
+  const r = L.recv; burst(L.recv._x, L.recv._y, r._hue ?? 45, 70, 1.6);
+  $("winStars").innerHTML = [1, 2, 3].map(i => `<span class="${i <= stars ? "on" : "off"}">★</span>`).join("");
+  $("winText").textContent = moves <= L.par ? `${moves} Züge – perfekt.` : `${moves} Züge · Ziel war ${L.par}.`;
+  winTimer = setTimeout(() => $("win").classList.add("show"), 1100);
+}
+
+// ---------- Zeichnen ----------
+const cv = $("c"), ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1, cs = 40, ox = 0, oy = 0;
+const stars = Array.from({ length: 160 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.2 + .2, p: Math.random() * 6.28, s: .5 + Math.random() * 1.5 }));
+function layout() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR;
+  if (!L) return;
+  const top = W <= 560 ? 96 : 70, bottom = 60, avail = Math.min(W - 32, H - top - bottom);
+  cs = Math.floor(avail / (L.size + .6));
+  ox = Math.round((W - cs * L.size) / 2); oy = Math.round(top + (H - top - bottom - cs * L.size) / 2);
+  for (let y = 0; y < L.size; y++) for (let x = 0; x < L.size; x++) { const c = L.grid[y][x]; c._x = ox + (x + .5) * cs; c._y = oy + (y + .5) * cs; }
+}
+addEventListener("resize", layout);
+
+const X = u => ox + u * cs, Y = u => oy + u * cs;
+function burst(x, y, hue, n = 24, sp = 1) {
+  for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = (40 + Math.random() * 160) * sp;
+    particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, decay: .6 + Math.random() * .8, hue, r: 1 + Math.random() * 2 }); }
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+// Strahl in farbigen Abschnitten bis zur gezeigten Länge zeichnen
+function beamSections() {
+  const secs = []; let from = 0, hue = 42;
+  for (const e of T.events) { if (e.dist > shown) break; if (e.cell.t === CRYSTAL) { secs.push({ from, to: e.dist, hue }); from = e.dist; hue = e.cell.hue; } }
+  secs.push({ from, to: shown, hue });
+  return secs;
+}
+function strokeRange(a, b) {
+  const P = T.pts; let acc = 0; ctx.beginPath(); let started = false;
+  for (let i = 1; i < P.length; i++) {
+    const p0 = P[i - 1], p1 = P[i], len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+    const s = Math.max(a, acc), e = Math.min(b, acc + len);
+    if (e > s) {
+      const t0 = (s - acc) / len, t1 = (e - acc) / len;
+      const x0 = p0.x + (p1.x - p0.x) * t0, y0 = p0.y + (p1.y - p0.y) * t0;
+      if (!started) { ctx.moveTo(X(x0), Y(y0)); started = true; }
+      ctx.lineTo(X(p0.x + (p1.x - p0.x) * t1), Y(p0.y + (p1.y - p0.y) * t1));
+    }
+    acc += len; if (acc >= b) break;
+  }
+  ctx.stroke();
+}
+function pointAt(dd) {
+  const P = T.pts; let acc = 0;
+  for (let i = 1; i < P.length; i++) { const p0 = P[i - 1], p1 = P[i], len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+    if (acc + len >= dd) { const t = (dd - acc) / len; return { x: X(p0.x + (p1.x - p0.x) * t), y: Y(p0.y + (p1.y - p0.y) * t) }; } acc += len; }
+  const l = P[P.length - 1]; return { x: X(l.x), y: Y(l.y) };
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now; const t = now / 1000;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  // Himmel
+  const g = ctx.createRadialGradient(W / 2, H * .45, 0, W / 2, H * .45, Math.max(W, H) * .8);
+  g.addColorStop(0, "#141a36"); g.addColorStop(1, "#05070f");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (const s of stars) { ctx.globalAlpha = .25 + .35 * Math.sin(t * s.s + s.p) ** 2; ctx.fillStyle = "#cfd8ff"; ctx.beginPath(); ctx.arc(s.x * W, s.y * H, s.r, 0, 6.283); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  if (!L) return requestAnimationFrame(frame);
+
+  // Strahl fortschreiten lassen
+  shown = Math.min(T.dist, shown + dt * 13);
+  const lit = new Set(); for (const e of T.events) if (e.dist <= shown) lit.add(e.cell);
+  for (const c of lit) if (!litPrev.has(c) && c.t === CRYSTAL) { bell(note(L.crystals.indexOf(c) + 2), 0, .09); burst(c._x, c._y, c.hue, 26); }
+  litPrev = lit;
+  if (!won && shown >= T.dist && isSolved(L, T)) onWin();
+  const secs = beamSections(); const finalHue = secs[secs.length - 1].hue;
+  L.recv._hue = finalHue;
+
+  // Brett
+  const S = L.size;
+  ctx.fillStyle = "rgba(255,255,255,.025)"; roundRect(ox - 8, oy - 8, cs * S + 16, cs * S + 16, 14); ctx.fill();
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    ctx.fillStyle = (x + y) % 2 ? "rgba(255,255,255,.035)" : "rgba(255,255,255,.05)";
+    roundRect(ox + x * cs + 2, oy + y * cs + 2, cs - 4, cs - 4, cs * .12); ctx.fill();
+  }
+
+  // Objekte
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const c = L.grid[y][x], cx = c._x, cy = c._y;
+    if (c.t === WALL) {
+      const gg = ctx.createLinearGradient(0, cy - cs / 2, 0, cy + cs / 2); gg.addColorStop(0, "#3a4160"); gg.addColorStop(1, "#1b2038");
+      ctx.fillStyle = gg; roundRect(cx - cs * .42, cy - cs * .42, cs * .84, cs * .84, cs * .12); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.08)"; ctx.lineWidth = 1; ctx.stroke();
+    } else if (c.t === MIRROR) {
+      c.ang += (c.target - c.ang) * Math.min(1, dt * 16);
+      const hov = hover === c && !c.locked && !won;
+      if (c.locked) {
+        ctx.fillStyle = "rgba(160,120,70,.18)"; roundRect(cx - cs * .3, cy - cs * .3, cs * .6, cs * .6, cs * .08); ctx.fill();
+      } else {
+        ctx.fillStyle = hov ? "rgba(255,220,150,.16)" : "rgba(255,255,255,.06)"; ctx.beginPath(); ctx.arc(cx, cy, cs * .36, 0, 6.283); ctx.fill();
+        if (hov) { ctx.strokeStyle = "rgba(255,220,150,.45)"; ctx.lineWidth = 1.5; ctx.stroke(); }
+      }
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(c.ang);
+      const len = cs * .4, wd = Math.max(3, cs * .085);
+      const mg = ctx.createLinearGradient(0, -wd, 0, wd);
+      if (c.locked) { mg.addColorStop(0, "#f0d2a0"); mg.addColorStop(1, "#8a6a3c"); } else { mg.addColorStop(0, "#ffffff"); mg.addColorStop(.5, "#c9d3ee"); mg.addColorStop(1, "#6d7898"); }
+      ctx.fillStyle = mg; roundRect(-len, -wd / 2, len * 2, wd, wd / 2); ctx.fill();
+      ctx.restore();
+      if (c.locked) { ctx.fillStyle = "#c9a46a"; for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.beginPath(); ctx.arc(cx + a * cs * .22, cy + b * cs * .22, Math.max(1.5, cs * .03), 0, 6.283); ctx.fill(); } }
+    } else if (c.t === SRC) {
+      const pulse = 1 + .08 * Math.sin(t * 3);
+      const sg = ctx.createRadialGradient(cx, cy, 0, cx, cy, cs * .6 * pulse); sg.addColorStop(0, "rgba(255,220,140,.9)"); sg.addColorStop(.35, "rgba(255,190,90,.35)"); sg.addColorStop(1, "rgba(255,190,90,0)");
+      ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(cx, cy, cs * .6 * pulse, 0, 6.283); ctx.fill();
+      ctx.fillStyle = "#fff4d8"; ctx.beginPath(); ctx.arc(cx, cy, cs * .13, 0, 6.283); ctx.fill();
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(c.d * Math.PI / 2); ctx.fillStyle = "rgba(255,230,170,.85)";
+      ctx.beginPath(); ctx.moveTo(cs * .38, 0); ctx.lineTo(cs * .24, -cs * .08); ctx.lineTo(cs * .24, cs * .08); ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+  }
+
+  // Lichtstrahl (additiv)
+  ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const flick = .9 + .1 * Math.sin(t * 23) * Math.sin(t * 7);
+  for (const s of secs) {
+    if (s.to <= s.from) continue;
+    const layers = [[.34, .07], [.17, .16], [.07, .55], [.025, .95]];
+    layers.forEach(([w, a], i) => {
+      ctx.lineWidth = Math.max(1, cs * w);
+      ctx.strokeStyle = i === 3 ? `rgba(255,255,255,${a * flick})` : `hsla(${s.hue},95%,${s.hue === 42 ? 66 : 62}%,${a * flick})`;
+      strokeRange(s.from, s.to);
+    });
+  }
+  if (shown < T.dist) { const h = pointAt(shown), hg = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, cs * .35);
+    hg.addColorStop(0, "rgba(255,255,255,.9)"); hg.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(h.x, h.y, cs * .35, 0, 6.283); ctx.fill(); }
+  ctx.restore();
+
+  // Kristalle & Linse über dem Strahl
+  for (const c of L.crystals) {
+    const on = lit.has(c), r = cs * .27 * (on ? 1 + .05 * Math.sin(t * 4 + c.hue) : 1);
+    if (on) { const cg = ctx.createRadialGradient(c._x, c._y, 0, c._x, c._y, cs * .75); cg.addColorStop(0, `hsla(${c.hue},100%,70%,.55)`); cg.addColorStop(1, `hsla(${c.hue},100%,60%,0)`);
+      ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(c._x, c._y, cs * .75, 0, 6.283); ctx.fill(); ctx.restore(); }
+    ctx.save(); ctx.translate(c._x, c._y);
+    const sway = Math.sin(t * 1.3 + c.hue) * .08;
+    ctx.rotate(sway);
+    ctx.beginPath(); ctx.moveTo(0, -r * 1.25); ctx.lineTo(r, 0); ctx.lineTo(0, r * 1.25); ctx.lineTo(-r, 0); ctx.closePath();
+    ctx.fillStyle = on ? `hsla(${c.hue},90%,72%,.95)` : `hsla(${c.hue},40%,25%,.85)`; ctx.fill();
+    ctx.strokeStyle = on ? `hsla(${c.hue},100%,92%,1)` : `hsla(${c.hue},60%,55%,.7)`; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r * 1.25); ctx.lineTo(r * .35, 0); ctx.lineTo(0, r * 1.25);
+    ctx.strokeStyle = on ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.12)"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+  }
+  { const c = L.recv, on = lit.has(c), hue = on ? finalHue : 42;
+    if (on) { ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.translate(c._x, c._y); ctx.rotate(t * .6);
+      for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.fillStyle = `hsla(${hue},100%,70%,${.12 + .08 * Math.sin(t * 3 + i)})`;
+        ctx.beginPath(); ctx.moveTo(cs * .2, -cs * .04); ctx.lineTo(cs * (.85 + .1 * Math.sin(t * 2 + i * 1.7)), 0); ctx.lineTo(cs * .2, cs * .04); ctx.fill(); }
+      ctx.restore(); }
+    ctx.beginPath(); ctx.arc(c._x, c._y, cs * .3, 0, 6.283);
+    ctx.strokeStyle = on ? `hsla(${hue},100%,80%,1)` : "rgba(255,210,122,.45)"; ctx.lineWidth = Math.max(2, cs * .05); ctx.stroke();
+    ctx.beginPath(); ctx.arc(c._x, c._y, cs * .17, 0, 6.283);
+    ctx.fillStyle = on ? `hsla(${hue},100%,85%,1)` : "rgba(255,210,122,.12)"; ctx.fill();
+  }
+
+  // Partikel
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  particles = particles.filter(p => (p.life -= dt * p.decay) > 0);
+  for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .96; p.vy *= .96;
+    ctx.fillStyle = `hsla(${p.hue},100%,75%,${p.life})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.5 + p.life), 0, 6.283); ctx.fill(); }
+  ctx.restore();
+
+  requestAnimationFrame(frame);
+}
+
+// ---------- Eingabe ----------
+function cellAt(ev) {
+  if (!L) return null;
+  const x = Math.floor((ev.clientX - ox) / cs), y = Math.floor((ev.clientY - oy) / cs);
+  return x >= 0 && y >= 0 && x < L.size && y < L.size ? L.grid[y][x] : null;
+}
+cv.addEventListener("pointermove", ev => { hover = cellAt(ev); cv.style.cursor = hover && hover.t === MIRROR && !hover.locked && !won ? "pointer" : "default"; });
+cv.addEventListener("pointerdown", ev => { audio(); flip(cellAt(ev)); });
+addEventListener("keydown", ev => {
+  if (ev.key === "r" || ev.key === "R") loadLevel(L.n);
+  else if (ev.key === "ArrowRight" || ((ev.key === "n" || ev.key === "Enter") && won)) loadLevel(L.n + 1);
+  else if (ev.key === "ArrowLeft") loadLevel(L.n - 1);
+  else if (ev.key === "m" || ev.key === "M") toggleMute();
+});
+function toggleMute() { muted = !muted; localStorage.setItem("lichtweg-muted", muted ? "1" : "0"); $("mute").style.opacity = muted ? .4 : 1; }
+$("prev").onclick = () => loadLevel(L.n - 1);
+$("next").onclick = () => loadLevel(L.n + 1);
+$("reset").onclick = () => loadLevel(L.n);
+$("again").onclick = () => loadLevel(L.n);
+$("go").onclick = () => loadLevel(L.n + 1);
+$("mute").onclick = toggleMute;
+$("mute").style.opacity = muted ? .4 : 1;
+
+layout();
+loadLevel(save.current || 1);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
