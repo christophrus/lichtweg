@@ -47,6 +47,16 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   (perfekte Level, gelöste Tagesrätsel, längste Serie, Zufallslevel).
 - Lokal: `index.html` öffnen oder `python -m http.server 8765` starten.
 
+## Entwicklung
+
+`node tests/regress.js` prüft in unter einer Sekunde, was nie kaputtgehen darf:
+- Level 1–60 und Tagesrätsel #1 bleiben gleich (Fingerabdruck).
+- Neue Mechaniken lassen frühere Level in Ruhe.
+- Level 1–400, zwei Jahre Tagesrätsel und Zufallslevel sind fair und lösbar.
+- Level-Links überstehen Hin- und Rückweg.
+
+Vor jeder Änderung am Generator laufen lassen.
+
 Was als Nächstes kommt: [ROADMAP.md](ROADMAP.md)
 
 ## English
