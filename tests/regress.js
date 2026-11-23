@@ -103,5 +103,9 @@ check("Jedes $(…) findet sein Element", !refs.length, refs.join(", "));
 const aria = [...html.matchAll(/aria-(?:labelledby|describedby)="([^"]+)"/g)].flatMap(m => m[1].split(/\s+/)).filter(r => !ids.includes(r));
 check("aria-Verweise zeigen auf vorhandene IDs", !aria.length, aria.join(", "));
 
+// 9. Kleine Fallen, die schon einmal zugeschnappt sind
+check("Kein festes „Züge“ hinter einer Zahl (1 Zug, 2 Züge)", !/\}\s*Züge/.test(script));
+check("Kein innerText (liefert bei unsichtbaren Karten nichts)", !/\.innerText\b/.test(script));
+
 console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen.` : "\nAlles in Ordnung.");
 process.exit(failed ? 1 : 0);

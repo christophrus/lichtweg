@@ -690,7 +690,7 @@ function loadDaily() {
   $("prev").disabled = $("next").disabled = true;
   $("daily").classList.add("active");
   $("hint").textContent = done
-    ? tx(`Heute gelöst: ${done.moves} Züge ${starText(done.stars)}. Weitere Versuche zählen nicht.`,
+    ? tx(`Heute gelöst: ${done.moves} ${mv(done.moves)} ${starText(done.stars)}. Weitere Versuche zählen nicht.`,
       `Solved today: ${done.moves} ${mv(done.moves)} ${starText(done.stars)}. Further tries don't count.`)
     : (() => {
       // Farbtore kennt erst, wer Level 10 geschafft hat. Wer nur Tagesrätsel spielt, bekommt sie hier erklärt.
@@ -806,8 +806,8 @@ function showTip() {
 
 function undo() { if (mode === "edit") return editUndo(); if (!won && undoStack.length) flip(undoStack.pop(), true); }
 
-const resultText = () => moves <= L.par ? tx(`${moves} Züge – perfekt.`, `${moves} ${mv(moves)} – perfect.`)
-  : tx(`${moves} Züge · Ziel war ${L.par}.`, `${moves} ${mv(moves)} · target was ${L.par}.`);
+const resultText = () => moves <= L.par ? tx(`${moves} ${mv(moves)} – perfekt.`, `${moves} ${mv(moves)} – perfect.`)
+  : tx(`${moves} ${mv(moves)} · Ziel war ${L.par}.`, `${moves} ${mv(moves)} · target was ${L.par}.`);
 function onWin() {
   won = true; updateUndo();
   [0, 2, 4, 7].forEach((i, k) => bell(note(i, 392), k * .11, .1));
@@ -841,15 +841,16 @@ function onWin() {
     stars = r.stars;
     const now = new Date(), mins = Math.ceil((new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now) / 6e4);
     $("winTitle").textContent = tx(`Tagesrätsel #${L.num}`, `Daily #${L.num}`);
-    text = tx(`${r.moves} Züge · Ziel ${r.par} · Serie: ${save.daily.streak} ${days(save.daily.streak)}`, `${r.moves} ${mv(r.moves)} · target ${r.par} · streak: ${save.daily.streak} ${days(save.daily.streak)}`)
-      + (first ? "" : tx(`<small>Diesmal ${moves} Züge – gewertet bleibt dein erster Versuch.</small>`, `<small>This time ${moves} ${mv(moves)} – your first try is the one that counts.</small>`))
+    text = tx(`${r.moves} ${mv(r.moves)} · Ziel ${r.par} · Serie: ${save.daily.streak} ${days(save.daily.streak)}`, `${r.moves} ${mv(r.moves)} · target ${r.par} · streak: ${save.daily.streak} ${days(save.daily.streak)}`)
+      + (first ? "" : tx(`<small>Diesmal ${moves} ${mv(moves)} – gewertet bleibt dein erster Versuch.</small>`, `<small>This time ${moves} ${mv(moves)} – your first try is the one that counts.</small>`))
       + tx(`<small>Nächstes Rätsel in ${Math.floor(mins / 60)} h ${mins % 60} min</small>`, `<small>Next puzzle in ${Math.floor(mins / 60)} h ${mins % 60} min</small>`);
     $("share").hidden = false; $("share").textContent = tx("Teilen", "Share"); $("go").textContent = tx("Zu den Leveln", "To the levels");
   }
   $("qrBtn").hidden = !["custom", "seed", "daily"].includes(mode);
   $("winStars").innerHTML = [1, 2, 3].map(i => `<span class="${i <= stars ? "on" : "off"}">★</span>`).join("");
   $("winText").innerHTML = text;
-  say(`${tx("Gelöst!", "Solved!")} ${$("winText").innerText.split("\n")[0]}`);
+  // Aus dem Text selbst, nicht aus der Karte: Die ist noch unsichtbar, und innerText liefert dann nichts
+  say(`${tx("Gelöst!", "Solved!")} ${tx(`${stars} von 3 Sternen.`, `${stars} of 3 stars.`)} ${text.split("<small>")[0].replace(/<[^>]+>/g, "")}`);
   winTimer = setTimeout(() => { $("win").classList.add("show"); ($("go").hidden ? $("again") : $("go")).focus({ preventScroll: true }); }, 1100);
 }
 
@@ -896,7 +897,7 @@ async function shareDaily() {
   const tt = titleOf(customCode || ""), named = tt ? " " + quoted(tt) : "";
   if (mode === "custom") return shareText(tx(`Lichtweg · Ein Level für dich${named} (Ziel: ${L.par} ${mv(L.par)})\n`, `Lichtweg · a level for you${named} (target: ${L.par} ${mv(L.par)})\n`) + levelLink(customCode), $("share"), tx("Link teilen", "Share link"));
   const r = save.daily.results[L.day]; if (!r) return;
-  const text = tx(`Lichtweg · Tagesrätsel #${L.num}\n${starText(r.stars)} ${r.moves} Züge (Ziel ${r.par}) · Serie ${save.daily.streak}\n`,
+  const text = tx(`Lichtweg · Tagesrätsel #${L.num}\n${starText(r.stars)} ${r.moves} ${mv(r.moves)} (Ziel ${r.par}) · Serie ${save.daily.streak}\n`,
     `Lichtweg · daily #${L.num}\n${starText(r.stars)} ${r.moves} ${mv(r.moves)} (target ${r.par}) · streak ${save.daily.streak}\n`)
     + location.origin + location.pathname + "#heute";
   if (navigator.share && matchMedia("(pointer: coarse)").matches) {

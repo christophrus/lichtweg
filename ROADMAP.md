@@ -57,6 +57,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v26.1 – CI:** Regressionstest und QR-Prüfung laufen bei jedem Push in GitHub Actions, Issue-Vorlage für Rückmeldungen.
 - **v26.2 – Erklärt im Tagesrätsel:** Wer nur Tagesrätsel spielt, bekommt Farbtore (ab 24.11.) im Hinweis erklärt,
   sonntags sagt der Hinweis, was Strahlteiler und Prisma tun.
+- **v26.3:** Gewinn-Ansage für Screenreader wieder vollständig (seit v24 nur „Gelöst!“), jetzt mit Sternen;
+  „1 Zug“ statt „1 Züge“ überall. Tagesrätsel über Mitternacht geprüft: Ergebnis und Serie stimmen.
 
 ## Als Nächstes
 
