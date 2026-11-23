@@ -20,6 +20,8 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   das Licht dort auf dem Lösungsweg hat. So bleibt jedes Level lösbar.
 - **Strahlteiler** (ab Level 22): drehbare Glasscheiben, die das Licht durchlassen und zugleich spiegeln. Dann gibt es
   zwei Linsen, und beide müssen leuchten. Auch hier wird der zweite Weg rückwärts gelegt.
+- **Zufallslevel** (Levelübersicht): ein frisches Level in deiner Stufe. Gelöst lässt es sich als Link teilen
+  (`#z=Stufe-Startwert`), und wer ihn öffnet, bekommt genau dieses Level.
 - **Selbst bauen** (Levelübersicht → „Selbst bauen“ oder `#bauen`): Quelle, Linsen, Spiegel, Kristalle, Tore,
   Teiler, Portale und Wände setzen. Nochmal tippen dreht Spiegel, Teiler und Quelle, wechselt die Farbe von Kristall
   und Tor oder das Paar eines Portals. Der Editor zeigt, ob der Strahl schon alles erreicht. „Testen“ verdreht die Spiegel und lässt dich selbst lösen. „Link teilen“

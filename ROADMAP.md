@@ -22,15 +22,13 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   Himmel, der der Uhrzeit folgt (Nacht, Morgenrot, Tag, Abendrot).
 - **v9 – Portale** (ab Level 35, wo Platz ist): Das Licht springt vom einen Portal zum anderen und kommt über einen
   Umweg mit neuen Spiegeln zum Lösungsweg zurück. Lösungsweg und Level vor 35 bleiben unverändert. Auch im Editor.
+- **v10 – Zufallslevel:** neue Level in deiner Stufe aus einem zufälligen Startwert, teilbar als `#z=Stufe-Startwert`.
 
 ## Als Nächstes
 
 ### 1. Neue Mechaniken (das Herzstück)
 Jede Mechanik wird im Generator rückwärts gebaut und ist damit automatisch lösbar. Sie wird mit einem kurzen Hinweis-Level eingeführt.
 - **Drehprismen mit vier Stellungen** statt zwei, für spätere Level.
-
-### 2. Selbst bauen und teilen
-- **Seed-Links:** `#seed=1234` für „versuch mal dieses hier“.
 
 ## Bewusst nicht geplant
 - Konten, Bestenlisten mit Server, Werbung, Tracking.

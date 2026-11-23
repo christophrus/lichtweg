@@ -114,7 +114,7 @@
   <h2>Level</h2>
   <p id="levelsInfo"></p>
   <div id="levelGrid"></div>
-  <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="build">Selbst bauen</button><button id="closeLevels">Schließen</button></div>
+  <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="rand">Zufallslevel</button><button id="build">Selbst bauen</button><button id="closeLevels">Schließen</button></div>
 </div></div>
 <div id="win"><div class="card">
   <h2 id="winTitle">Licht gefunden</h2>
@@ -609,15 +609,32 @@ function loadLevel(n) {
   layout();
 }
 
+// ---------- Zufallslevel: beliebiger Startwert, Stufe wie dein Fortschritt, als Link teilbar (#z=Stufe-Startwert) ----------
+const seedHash = (n, seed) => `#z=${n}-${seed}`;
+function parseSeed(h) {
+  const m = /^#z=(\d{1,3})-(\d{1,10})$/.exec(h || ""); if (!m) return null;
+  const n = +m[1], seed = +m[2]; return n >= 1 && seed < 2 ** 32 ? [n, seed] : null;
+}
+function loadSeed(n, seed) {
+  mode = "seed";
+  const lv = generate(n, seed); lv.seed = seed;
+  startPlay(lv); setHash(seedHash(n, seed));
+  $("lvl").textContent = `Zufallslevel · Stufe ${n}`;
+  $("prev").disabled = $("next").disabled = true; $("daily").classList.remove("active");
+  $("hint").textContent = "Ein Level, das noch niemand gesehen hat. Gelöst kannst du es als Link teilen."; $("hint").style.opacity = 1;
+  layout();
+}
+const seedLevel = () => loadSeed(Math.max(3, save.unlocked), (Math.random() * 2 ** 31) >>> 0);
+
 const updateUndo = () => { $("undo").disabled = won || !undoStack.length; };
 const say = msg => { $("sr").textContent = ""; setTimeout(() => { $("sr").textContent = msg; }, 40); };
 
-// isUndo: Zug zurücknehmen. In Leveln zählt das minus eins, im Tagesrätsel als eigener Zug (fair bleibt fair).
+// isUndo: Zug zurücknehmen. Das zählt minus eins, nur im Tagesrätsel als eigener Zug (fair bleibt fair).
 function flip(c, isUndo = false) {
   if (won || !rotatable(c)) return;
   c.o ^= 1;
   if (isUndo) c.target -= Math.PI / 2; else { c.target += Math.PI / 2; undoStack.push(c); }
-  moves += isUndo && mode === "level" ? -1 : 1;
+  moves += isUndo && mode !== "daily" ? -1 : 1;
   updateUndo();
   $("moves").textContent = moves;
   const nt = trace(L);
@@ -644,12 +661,12 @@ function onWin() {
     $("winTitle").textContent = "Licht gefunden";
     text = moves <= L.par ? `${moves} Züge – perfekt.` : `${moves} Züge · Ziel war ${L.par}.`;
     $("share").hidden = true; $("go").textContent = "Weiter →";
-  } else if (mode === "custom") {
+  } else if (mode === "custom" || mode === "seed") {
     stars = starsFor(moves, L.par);
     $("winTitle").textContent = "Licht gefunden";
     text = moves <= L.par ? `${moves} Züge – perfekt.` : `${moves} Züge · Ziel war ${L.par}.`;
     $("share").hidden = false; $("share").textContent = "Link teilen";
-    $("go").textContent = customFromEditor ? "Zum Editor" : "Zu den Leveln";
+    $("go").textContent = mode === "seed" ? "Noch ein Zufallslevel" : customFromEditor ? "Zum Editor" : "Zu den Leveln";
   } else {
     let r = save.daily.results[L.day];
     const first = !r;
@@ -688,6 +705,8 @@ async function shareText(text, button, label) {
 const levelLink = code => location.origin + location.pathname + "#l=" + code;
 
 async function shareDaily() {
+  if (mode === "seed") return shareText(`Lichtweg · Zufallslevel, Stufe ${L.n} (Ziel: ${L.par} ${L.par === 1 ? "Zug" : "Züge"})\n`
+    + location.origin + location.pathname + seedHash(L.n, L.seed), $("share"), "Link teilen");
   if (mode === "custom") return shareText(`Lichtweg · Ein Level für dich (Ziel: ${L.par} ${L.par === 1 ? "Zug" : "Züge"})\n` + levelLink(customCode), $("share"), "Link teilen");
   const r = save.daily.results[L.day]; if (!r) return;
   const text = `Lichtweg · Tagesrätsel #${L.num}\n${starText(r.stars)} ${r.moves} Züge (Ziel ${r.par}) · Serie ${save.daily.streak}\n`
@@ -1078,8 +1097,9 @@ function cellAt(ev) {
 cv.addEventListener("pointermove", ev => { hover = cellAt(ev); cv.style.cursor = rotatable(hover) && !won ? "pointer" : "default"; });
 cv.addEventListener("pointerdown", ev => { audio(); cursorOn = false; if (mode === "edit") editAt(cellAt(ev)); else flip(cellAt(ev)); });
 cv.addEventListener("pointermove", () => { if (mode === "edit") cv.style.cursor = hover ? "pointer" : "default"; });
-const restart = () => mode === "daily" ? loadDaily() : mode === "custom" ? loadCustom(customCode, customFromEditor) : mode === "edit" ? null : loadLevel(L.n);
-const proceed = () => mode === "daily" ? loadLevel(save.current || 1)
+const restart = () => mode === "daily" ? loadDaily() : mode === "custom" ? loadCustom(customCode, customFromEditor) : mode === "edit" ? null
+  : mode === "seed" ? loadSeed(L.n, L.seed) : loadLevel(L.n);
+const proceed = () => mode === "daily" ? loadLevel(save.current || 1) : mode === "seed" ? seedLevel()
   : mode === "custom" ? (customFromEditor ? openEditor() : loadLevel(save.current || 1)) : loadLevel(L.n + 1);
 const toggleDaily = () => mode === "daily" ? loadLevel(save.current || 1) : loadDaily();
 const nextLevel = () => { if (mode === "level" && L.n < save.unlocked) loadLevel(L.n + 1); };
@@ -1157,6 +1177,7 @@ $("again").onclick = restart;
 $("go").onclick = proceed;
 $("share").onclick = shareDaily;
 $("build").onclick = () => openEditor();
+$("rand").onclick = () => { closeLevels(); seedLevel(); };
 $("esize").onchange = () => resizeEditor(+$("esize").value);
 $("eclear").onclick = () => { const size = L.size; L = EDIT_DEFAULT(); if (size !== 7) resizeEditor(size); else { T = trace(L); shown = 0; layout(); saveDraft(); editStatus(); } };
 $("etest").onclick = () => { const code = scrambleForShare(); if (code) loadCustom(code, true); };
@@ -1172,6 +1193,7 @@ addEventListener("hashchange", () => {
   if (h === "#heute" && mode !== "daily") loadDaily();
   else if (h === "#bauen" && mode !== "edit") openEditor();
   else if (h.startsWith("#l=") && (mode !== "custom" || h.slice(3) !== customCode)) loadCustom(h.slice(3));
+  else if (parseSeed(h) && (mode !== "seed" || h !== seedHash(L.n, L.seed))) loadSeed(...parseSeed(h));
 });
 // Tab offen über Mitternacht: Badge aktualisieren, damit das neue Rätsel auffällt
 setInterval(updateDailyBadge, 60000);
@@ -1185,6 +1207,7 @@ $("install").onclick = async () => { if (!installPrompt) return; installPrompt.p
 
 layout();
 if (location.hash.startsWith("#l=")) loadCustom(location.hash.slice(3));
+else if (parseSeed(location.hash)) loadSeed(...parseSeed(location.hash));
 else if (location.hash === "#bauen") openEditor();
 else if (location.hash === "#heute" || (save.mode === "daily" && !location.hash)) loadDaily(); else loadLevel(save.current || 1);
 requestAnimationFrame(frame);
