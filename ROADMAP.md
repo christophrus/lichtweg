@@ -1,6 +1,6 @@
 # Lichtweg – Roadmap
 
-Gepflegt von Claude, abgenommen vom Repo-Besitzer. Jede Stufe kommt als eigener Pull Request.
+Gepflegt von Claude, abgenommen vom Repo-Besitzer. Jede Stufe kommt als eigener Commit auf `main`.
 
 Leitlinie: Das Spiel bleibt **eine HTML-Datei ohne Abhängigkeiten und ohne Server**. Es soll ruhig, schön und
 fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösungsweg zuerst legt.
@@ -16,6 +16,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   Ränder für Notch-Handys.
 - **v6 – Strahlteiler** (ab Level 22): drehbare Glasscheiben teilen das Licht, zwei Linsen müssen leuchten.
   Ein Teiler sitzt auf einem freien Feld oder ersetzt einen Spiegel des Lösungswegs. Alles Bisherige bleibt.
+- **v7 – Level-Editor:** eigene Level bauen (`#bauen`), sofort testen und als Link teilen. Das Level steckt
+  komprimiert in der URL (`#l=…`), ein Server ist nicht nötig. Vor dem Teilen werden die Spiegel verdreht.
 
 ## Als Nächstes
 
@@ -25,8 +27,6 @@ Jede Mechanik wird im Generator rückwärts gebaut und ist damit automatisch lö
 - **Drehprismen mit vier Stellungen** statt zwei, für spätere Level.
 
 ### 2. Selbst bauen und teilen
-- **Level-Editor:** Felder setzen, Lösung testen, dann als Link teilen. Das Level steckt komprimiert in der URL
-  (`#l=…`), es braucht also keinen Server.
 - **Seed-Links:** `#seed=1234` für „versuch mal dieses hier“.
 
 ### 3. Klang und Atmosphäre

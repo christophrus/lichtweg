@@ -64,6 +64,15 @@
   #levelGrid button { padding:8px 0 6px; display:flex; flex-direction:column; align-items:center; gap:2px; font-variant-numeric:tabular-nums; }
   #levelGrid button small { font-size:10px; color:var(--gold); letter-spacing:1px; min-height:12px; }
   #levelGrid button.cur { border-color:rgba(255,210,122,.7); background:rgba(255,210,122,.14); }
+  #tools { position:fixed; left:0; right:0; bottom:0; display:flex; flex-direction:column; gap:7px; align-items:center;
+    padding:22px 10px calc(10px + env(safe-area-inset-bottom)); background:linear-gradient(transparent, rgba(5,7,15,.92) 28%); }
+  #tools[hidden] { display:none; }
+  #tools .row { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center; }
+  #tools button, #tools select { padding:6px 10px; font-size:13px; }
+  #tools select { background:rgba(255,255,255,.06); color:var(--ink); border:1px solid rgba(255,255,255,.12); border-radius:10px; font-family:inherit; }
+  #tools select option { background:#10142a; }
+  #tools button.sel { border-color:var(--gold); background:rgba(255,210,122,.2); color:var(--gold); }
+  #toolmsg { color:var(--dim); font-size:13px; min-height:17px; text-align:center; max-width:640px; }
   .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
   @media (max-width: 560px) {
     #hud { flex-wrap:wrap; padding:max(10px, env(safe-area-inset-top)) 12px 10px; }
@@ -89,11 +98,23 @@
 </div>
 <div id="hint"></div>
 <div id="sr" class="sr-only" aria-live="polite"></div>
+<div id="tools" hidden>
+  <div id="toolmsg"></div>
+  <div class="row" id="toolRow"></div>
+  <div class="row">
+    <label class="sr-only" for="esize">Größe</label>
+    <select id="esize" title="Größe des Bretts"><option value="5">5×5</option><option value="6">6×6</option><option value="7">7×7</option><option value="8">8×8</option><option value="9">9×9</option></select>
+    <button id="eclear">Leeren</button>
+    <button id="etest" class="primary">Testen</button>
+    <button id="eshare" class="primary">Link teilen</button>
+    <button id="edone">Fertig</button>
+  </div>
+</div>
 <div id="levels" class="overlay"><div class="card">
   <h2>Level</h2>
   <p id="levelsInfo"></p>
   <div id="levelGrid"></div>
-  <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="closeLevels">Schließen</button></div>
+  <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="build">Selbst bauen</button><button id="closeLevels">Schließen</button></div>
 </div></div>
 <div id="win"><div class="card">
   <h2 id="winTitle">Licht gefunden</h2>
@@ -280,6 +301,7 @@ function addSplitter(L, n, seed, straight, mirrors, visited) {
 // Jeder Strahl kennt seinen Start (Entfernung von der Quelle), damit alle gemeinsam wachsen.
 const rotatable = c => !!c && ((c.t === MIRROR && !c.locked) || c.t === SPLIT);
 function trace(L) {
+  if (!L.src) return { beams: [], events: [], blocked: [], hits: new Set(), dist: 0 };
   const S = L.size, seen = new Set(), beams = [], events = [], blocked = [], hits = new Set();
   const queue = [{ x: L.src.x, y: L.src.y, d: L.src.d, hue: GOLD, start: 0 }];
   while (queue.length && beams.length < 32) {
@@ -395,7 +417,58 @@ const starText = s => "★".repeat(s) + "☆".repeat(3 - s);
 function updateDailyBadge() { $("daily").classList.toggle("fresh", !save.daily.results[dayKey(dayOf(new Date()))]); }
 function setHash(h) { if (location.hash !== h) history.replaceState(null, "", h || location.pathname + location.search); }
 
+// ---------- Eigene Level: Kodierung für Links (#l=…) ----------
+// Pro Feld ein Byte: Typ (3 Bit) + Parameter (5 Bit). Davor Version, Größe, Ziel.
+function makeCell(t, p, x, y) {
+  switch (t) {
+    case WALL: return { t, x, y };
+    case MIRROR: return { t, o: p & 1, locked: !!(p & 2), x, y };
+    case SPLIT: return { t, o: p & 1, x, y };
+    case CRYSTAL: return { t, shape: p % 4, hue: HUES[p % 4], x, y };
+    case GATE: return p === 0 ? { t, hue: GOLD, shape: -1, x, y } : { t, hue: HUES[(p - 1) % 4], shape: (p - 1) % 4, x, y };
+    case SRC: return { t, d: p & 3, x, y };
+    case RECV: return { t, x, y };
+    default: return { t: EMPTY, x, y };
+  }
+}
+function cellParam(c) {
+  if (c.t === MIRROR) return c.o | (c.locked ? 2 : 0);
+  if (c.t === SPLIT) return c.o;
+  if (c.t === CRYSTAL) return c.shape;
+  if (c.t === GATE) return c.shape < 0 ? 0 : c.shape + 1;
+  if (c.t === SRC) return c.d;
+  return 0;
+}
+function buildLevel(size, grid, par, loose = false) {
+  let src = null; const crystals = [], recvs = [];
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const c = grid[y][x]; c.x = x; c.y = y;
+    if (c.t === SRC) { if (src && !loose) return null; src = { x, y, d: c.d }; }
+    else if (c.t === CRYSTAL) crystals.push(c);
+    else if (c.t === RECV) recvs.push(c);
+    else if ((c.t === MIRROR || c.t === SPLIT) && c.ang === undefined) { c.ang = c.o === 0 ? -Math.PI / 4 : Math.PI / 4; c.target = c.ang; }
+  }
+  if (!loose && (!src || !recvs.length)) return null;
+  crystals.sort((a, b) => a.shape - b.shape);
+  return { n: 0, size, grid, src, crystals, recvs, par, custom: true };
+}
+function encodeLevel(L) {
+  const bytes = [1, L.size, L.par];
+  for (const row of L.grid) for (const c of row) bytes.push(c.t | (cellParam(c) << 3));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function decodeLevel(code, loose = false) {
+  try {
+    const b = [...atob(code.replace(/-/g, "+").replace(/_/g, "/"))].map(ch => ch.charCodeAt(0));
+    const size = b[1];
+    if (b[0] !== 1 || size < 4 || size > 12 || b.length !== 3 + size * size) return null;
+    const grid = Array.from({ length: size }, (_, y) => Array.from({ length: size }, (_, x) => { const v = b[3 + y * size + x]; return makeCell(v & 7, v >> 3, x, y); }));
+    return buildLevel(size, grid, b[2], loose);
+  } catch { return null; }
+}
+
 function startPlay(level, startMoves = 0) {
+  $("tools").hidden = true; $("stats").style.visibility = "";
   L = level; T = trace(L); shown = 0; moves = startMoves; won = false; litPrev = new Set(); particles = [];
   undoStack = []; cursor = null; updateUndo();
   clearTimeout(winTimer); $("win").classList.remove("show");
@@ -476,6 +549,12 @@ function onWin() {
     $("winTitle").textContent = "Licht gefunden";
     text = moves <= L.par ? `${moves} Züge – perfekt.` : `${moves} Züge · Ziel war ${L.par}.`;
     $("share").hidden = true; $("go").textContent = "Weiter →";
+  } else if (mode === "custom") {
+    stars = starsFor(moves, L.par);
+    $("winTitle").textContent = "Licht gefunden";
+    text = moves <= L.par ? `${moves} Züge – perfekt.` : `${moves} Züge · Ziel war ${L.par}.`;
+    $("share").hidden = false; $("share").textContent = "Link teilen";
+    $("go").textContent = customFromEditor ? "Zum Editor" : "Zu den Leveln";
   } else {
     let r = save.daily.results[L.day];
     const first = !r;
@@ -499,7 +578,22 @@ function onWin() {
   winTimer = setTimeout(() => $("win").classList.add("show"), 1100);
 }
 
+async function shareText(text, button, label) {
+  if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+    try { await navigator.share({ text }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch {
+    const ta = Object.assign(document.createElement("textarea"), { value: text });
+    document.body.append(ta); ta.select(); ok = document.execCommand("copy"); ta.remove();
+  }
+  if (button) { button.textContent = ok ? "Kopiert ✓" : "Kopieren fehlgeschlagen"; setTimeout(() => { button.textContent = label; }, 1800); }
+  return ok;
+}
+const levelLink = code => location.origin + location.pathname + "#l=" + code;
+
 async function shareDaily() {
+  if (mode === "custom") return shareText(`Lichtweg · Ein Level für dich (Ziel: ${L.par} ${L.par === 1 ? "Zug" : "Züge"})\n` + levelLink(customCode), $("share"), "Link teilen");
   const r = save.daily.results[L.day]; if (!r) return;
   const text = `Lichtweg · Tagesrätsel #${L.num}\n${starText(r.stars)} ${r.moves} Züge (Ziel ${r.par}) · Serie ${save.daily.streak}\n`
     + location.origin + location.pathname + "#heute";
@@ -515,6 +609,99 @@ async function shareDaily() {
   setTimeout(() => { $("share").textContent = "Teilen"; }, 1800);
 }
 
+// ---------- Editor ----------
+let tool = "mirror", customCode = null, customFromEditor = false;
+const TOOLS = [["src", "Quelle"], ["recv", "Linse"], ["mirror", "Spiegel"], ["fixed", "Fester Spiegel"], ["split", "Teiler"],
+  ["crystal", "Kristall"], ["gate", "Tor"], ["wall", "Wand"], ["erase", "Radierer"]];
+const EDIT_DEFAULT = (() => {   // 7×7: Quelle links, Linse rechts, dazwischen freie Bahn
+  const size = 7, g = Array.from({ length: size }, (_, y) => Array.from({ length: size }, (_, x) => makeCell(EMPTY, 0, x, y)));
+  g[3][0] = makeCell(SRC, 0, 0, 3); g[3][6] = makeCell(RECV, 0, 6, 3);
+  return () => buildLevel(size, g.map(r => r.map(c => makeCell(c.t, cellParam(c), c.x, c.y))), 0, true);
+})();
+const editMsg = (m, warn = false) => { $("toolmsg").textContent = m; $("toolmsg").style.color = warn ? "#ffb38a" : ""; };
+function saveDraft() { localStorage.setItem("lichtweg-editor", encodeLevel(L)); }
+function editStatus() {
+  if (!L.src) return editMsg("Setze eine Lichtquelle (mehrmals tippen dreht sie).");
+  if (!L.recvs.length) return editMsg("Setze mindestens eine Linse.");
+  if (isSolved(L, T)) return editMsg("✓ Der Lösungsweg steht. Jetzt testen oder teilen – die Spiegel werden dabei verdreht.");
+  editMsg("Baue den Lösungsweg: Das Licht muss durch alle Kristalle in jede Linse. Nochmal tippen dreht oder färbt um.");
+}
+function openEditor(level) {
+  mode = "edit"; won = false; clearTimeout(winTimer); $("win").classList.remove("show"); closeLevels();
+  L = level || decodeLevel(localStorage.getItem("lichtweg-editor") || "", true) || EDIT_DEFAULT();
+  T = trace(L); shown = 0; particles = []; litPrev = new Set(); undoStack = []; updateUndo(); cursorOn = false;
+  setHash("#bauen");
+  $("lvl").textContent = "Level-Editor"; $("stats").style.visibility = "hidden";
+  $("prev").disabled = $("next").disabled = true; $("daily").classList.remove("active");
+  $("hint").textContent = ""; $("tools").hidden = false; $("esize").value = L.size;
+  $("toolRow").innerHTML = "";
+  for (const [id, label] of TOOLS) {
+    const b = document.createElement("button"); b.textContent = label; b.dataset.tool = id; b.className = id === tool ? "sel" : "";
+    b.onclick = () => { tool = id; for (const o of $("toolRow").children) o.classList.toggle("sel", o.dataset.tool === id); };
+    $("toolRow").append(b);
+  }
+  editStatus(); layout();
+}
+function editAt(c) {
+  if (!c) return;
+  const { x, y } = c; let t, prm = 0;
+  switch (tool) {
+    case "erase": t = EMPTY; break;
+    case "wall": t = WALL; break;
+    case "recv": t = RECV; break;
+    case "mirror": t = MIRROR; prm = c.t === MIRROR && !c.locked ? c.o ^ 1 : 0; break;
+    case "fixed": t = MIRROR; prm = 2 | (c.t === MIRROR && c.locked ? c.o ^ 1 : 0); break;
+    case "split": t = SPLIT; prm = c.t === SPLIT ? c.o ^ 1 : 0; break;
+    case "crystal": t = CRYSTAL; prm = c.t === CRYSTAL ? (c.shape + 1) % 4 : 0; break;
+    case "gate": t = GATE; prm = c.t === GATE ? (cellParam(c) + 1) % 5 : 0; break;
+    case "src": t = SRC; prm = c.t === SRC ? (c.d + 1) % 4 : 0;
+      for (const row of L.grid) for (const o of row) if (o.t === SRC && o !== c) row[o.x] = makeCell(EMPTY, 0, o.x, o.y);
+      break;
+  }
+  const n = makeCell(t, prm, x, y);
+  if ((c.t === MIRROR || c.t === SPLIT) && (n.t === MIRROR || n.t === SPLIT)) { n.ang = c.ang; n.target = c.target + (n.o !== c.o ? Math.PI / 2 : 0); }
+  L.grid[y][x] = n;
+  const old = T;
+  L = buildLevel(L.size, L.grid, 0, true);
+  T = trace(L); shown = Math.min(shown, divergence(old, T));
+  tone(300 + Math.random() * 60, .09, .06, "triangle"); buzz(6);
+  layout(); saveDraft(); editStatus();
+}
+function resizeEditor(size) {
+  const g = Array.from({ length: size }, (_, y) => Array.from({ length: size }, (_, x) =>
+    y < L.size && x < L.size ? L.grid[y][x] : makeCell(EMPTY, 0, x, y)));
+  L = buildLevel(size, g, 0, true); T = trace(L); shown = 0; layout(); saveDraft(); editStatus();
+}
+// Lösung verdrehen: jeder drehbare Teil mit 50 % Chance, bis das Level ungelöst ist. Ziel = Zahl der Drehungen.
+function scrambleForShare() {
+  if (!L.src) { editMsg("Es fehlt eine Lichtquelle.", true); return null; }
+  if (!L.recvs.length) { editMsg("Es fehlt eine Linse.", true); return null; }
+  if (!isSolved(L, trace(L))) { editMsg("Erst muss der Lösungsweg stehen: Licht durch alle Kristalle in jede Linse.", true); return null; }
+  const solved = encodeLevel(L);
+  for (let a = 0; a < 300; a++) {
+    const lv = decodeLevel(solved, true), rot = lv.grid.flat().filter(rotatable);
+    if (!rot.length) { editMsg("Ohne drehbare Spiegel oder Teiler gibt es nichts zu rätseln.", true); return null; }
+    let n = 0;
+    for (const c of rot) if (Math.random() < .5) { c.o ^= 1; n++; }
+    if (!n) continue;
+    lv.par = n;
+    if (!isSolved(lv, trace(lv))) return encodeLevel(lv);
+  }
+  editMsg("Ich finde keine verdrehte Stellung, in der das Licht nicht schon ankommt. Mehr Spiegel einbauen?", true);
+  return null;
+}
+function loadCustom(code, fromEditor = false) {
+  const lv = decodeLevel(code);
+  if (!lv) { loadLevel(save.current || 1); $("hint").textContent = "Dieser Level-Link ist leider kaputt."; $("hint").style.opacity = 1; layout(); return; }
+  mode = "custom"; customCode = code; customFromEditor = fromEditor;
+  startPlay(lv);
+  setHash("#l=" + code);
+  $("lvl").textContent = fromEditor ? "Test: eigenes Level" : "Geteiltes Level";
+  $("prev").disabled = $("next").disabled = true; $("daily").classList.remove("active");
+  $("hint").textContent = `${fromEditor ? "So sieht es für andere aus." : "Jemand hat dieses Level für dich gebaut."} Ziel: ${lv.par} ${lv.par === 1 ? "Zug" : "Züge"}.`;
+  $("hint").style.opacity = 1; layout();
+}
+
 // ---------- Zeichnen ----------
 const cv = $("c"), ctx = cv.getContext("2d");
 let W = 0, H = 0, DPR = 1, cs = 40, ox = 0, oy = 0;
@@ -524,7 +711,8 @@ function layout() {
   W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR;
   if (!L) return;
   const top = Math.ceil($("hud").getBoundingClientRect().bottom) + 6,
-    bottom = Math.max(60, ($("hint").textContent ? $("hint").getBoundingClientRect().height : 0) + 34), avail = Math.min(W - 32, H - top - bottom);
+    bottom = !$("tools").hidden ? $("tools").getBoundingClientRect().height + 8
+      : Math.max(60, ($("hint").textContent ? $("hint").getBoundingClientRect().height : 0) + 34), avail = Math.min(W - 32, H - top - bottom);
   cs = Math.floor(avail / (L.size + .6));
   ox = Math.round((W - cs * L.size) / 2); oy = Math.round(top + (H - top - bottom - cs * L.size) / 2);
   for (let y = 0; y < L.size; y++) for (let x = 0; x < L.size; x++) { const c = L.grid[y][x]; c._x = ox + (x + .5) * cs; c._y = oy + (y + .5) * cs; }
@@ -596,7 +784,7 @@ function frame(now) {
   for (const c of lit) if (!litPrev.has(c) && c.t === CRYSTAL) { bell(note(L.crystals.indexOf(c) + 2), 0, .09); burst(c._x, c._y, c.hue, 26); buzz(14);
     say(`Kristall leuchtet: ${L.crystals.filter(k => lit.has(k)).length} von ${L.crystals.length}`); }
   litPrev = lit;
-  if (!won && shown >= T.dist && isSolved(L, T)) onWin();
+  if (!won && mode !== "edit" && shown >= T.dist && isSolved(L, T)) onWin();
   if (T.blocked.length && shown >= T.dist && !T.signaled) { T.signaled = true; tone(146, .35, .07, "sine"); tone(110, .45, .05, "triangle"); buzz(30); say("Ein Farbtor blockiert das Licht."); }
   for (const r of L.recvs) { const e = T.events.find(e => e.cell === r && e.dist <= shown); r._hue = e ? e.hue : GOLD; }
 
@@ -709,6 +897,11 @@ function frame(now) {
     ctx.fillStyle = on ? `hsla(${hue},100%,85%,1)` : "rgba(255,210,122,.12)"; ctx.fill();
   }
 
+  if (mode === "edit" && hover) {
+    ctx.save(); ctx.strokeStyle = "rgba(255,220,150,.55)"; ctx.lineWidth = 2;
+    roundRect(hover._x - cs * .47, hover._y - cs * .47, cs * .94, cs * .94, cs * .14); ctx.stroke(); ctx.restore();
+  }
+
   // Tastatur-Auswahlrahmen
   if (cursorOn && cursor && !won) {
     const cx = ox + (cursor.x + .5) * cs, cy = oy + (cursor.y + .5) * cs;
@@ -734,9 +927,11 @@ function cellAt(ev) {
   return x >= 0 && y >= 0 && x < L.size && y < L.size ? L.grid[y][x] : null;
 }
 cv.addEventListener("pointermove", ev => { hover = cellAt(ev); cv.style.cursor = rotatable(hover) && !won ? "pointer" : "default"; });
-cv.addEventListener("pointerdown", ev => { audio(); cursorOn = false; flip(cellAt(ev)); });
-const restart = () => mode === "daily" ? loadDaily() : loadLevel(L.n);
-const proceed = () => mode === "daily" ? loadLevel(save.current || 1) : loadLevel(L.n + 1);
+cv.addEventListener("pointerdown", ev => { audio(); cursorOn = false; if (mode === "edit") editAt(cellAt(ev)); else flip(cellAt(ev)); });
+cv.addEventListener("pointermove", () => { if (mode === "edit") cv.style.cursor = hover ? "pointer" : "default"; });
+const restart = () => mode === "daily" ? loadDaily() : mode === "custom" ? loadCustom(customCode, customFromEditor) : mode === "edit" ? null : loadLevel(L.n);
+const proceed = () => mode === "daily" ? loadLevel(save.current || 1)
+  : mode === "custom" ? (customFromEditor ? openEditor() : loadLevel(save.current || 1)) : loadLevel(L.n + 1);
 const toggleDaily = () => mode === "daily" ? loadLevel(save.current || 1) : loadDaily();
 const nextLevel = () => { if (mode === "level" && L.n < save.unlocked) loadLevel(L.n + 1); };
 const prevLevel = () => { if (mode === "level" && L.n > 1) loadLevel(L.n - 1); };
@@ -786,6 +981,7 @@ addEventListener("keydown", ev => {
   if ((ev.ctrlKey || ev.metaKey) && k === "z") { ev.preventDefault(); undo(); return; }
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
   if ($("levels").classList.contains("show")) { if (k === "escape" || k === "l") closeLevels(); return; }
+  if (mode === "edit") { if (k === "m") toggleMute(); else if (k === "l") openLevels(); else if (k === "t") loadDaily(); return; }
   if (ev.target.tagName === "BUTTON" && (k === " " || k === "enter")) return;   // fokussierter Button bedient sich selbst
   if (k in ARROWS) { ev.preventDefault(); moveCursor(ARROWS[k]); }
   else if (k === " " || (k === "enter" && !won)) { ev.preventDefault(); if (cursorOn && cursor) flip(L.grid[cursor.y][cursor.x]); else moveCursor(0); }
@@ -811,10 +1007,23 @@ $("reset").onclick = restart;
 $("again").onclick = restart;
 $("go").onclick = proceed;
 $("share").onclick = shareDaily;
+$("build").onclick = () => openEditor();
+$("esize").onchange = () => resizeEditor(+$("esize").value);
+$("eclear").onclick = () => { const size = L.size; L = EDIT_DEFAULT(); if (size !== 7) resizeEditor(size); else { T = trace(L); shown = 0; layout(); saveDraft(); editStatus(); } };
+$("etest").onclick = () => { const code = scrambleForShare(); if (code) loadCustom(code, true); };
+$("eshare").onclick = async () => { const code = scrambleForShare(); if (!code) return;
+  const ok = await shareText(`Lichtweg · Ein Level für dich\n` + levelLink(code), null);
+  editMsg(ok === false ? "Kopieren hat nicht geklappt. Link: " + levelLink(code) : "Link kopiert – jedes Teilen verdreht die Spiegel neu."); };
+$("edone").onclick = () => loadLevel(save.current || 1);
 $("daily").onclick = toggleDaily;
 $("mute").onclick = toggleMute;
 $("mute").style.opacity = muted ? .4 : 1;
-addEventListener("hashchange", () => { if (location.hash === "#heute" && mode !== "daily") loadDaily(); });
+addEventListener("hashchange", () => {
+  const h = location.hash;
+  if (h === "#heute" && mode !== "daily") loadDaily();
+  else if (h === "#bauen" && mode !== "edit") openEditor();
+  else if (h.startsWith("#l=") && (mode !== "custom" || h.slice(3) !== customCode)) loadCustom(h.slice(3));
+});
 // Tab offen über Mitternacht: Badge aktualisieren, damit das neue Rätsel auffällt
 setInterval(updateDailyBadge, 60000);
 
@@ -826,7 +1035,9 @@ addEventListener("appinstalled", () => { installPrompt = null; $("install").hidd
 $("install").onclick = async () => { if (!installPrompt) return; installPrompt.prompt(); await installPrompt.userChoice; installPrompt = null; $("install").hidden = true; };
 
 layout();
-if (location.hash === "#heute" || (save.mode === "daily" && !location.hash)) loadDaily(); else loadLevel(save.current || 1);
+if (location.hash.startsWith("#l=")) loadCustom(location.hash.slice(3));
+else if (location.hash === "#bauen") openEditor();
+else if (location.hash === "#heute" || (save.mode === "daily" && !location.hash)) loadDaily(); else loadLevel(save.current || 1);
 requestAnimationFrame(frame);
 </script>
 </body>
