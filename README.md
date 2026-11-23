@@ -65,8 +65,9 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 Vor jeder Änderung am Generator laufen lassen.
 Läuft außerdem bei jedem Push automatisch (GitHub Actions).
 
-`node tests/e2e.mjs [URL]` spielt das Spiel in echtem Chromium (Playwright): Ansagen, Dialoge, Fokus, kaputte
-Spielstände und Links. Lokal ohne Browser-Download mit `LW_CHANNEL=chrome`. Läuft ebenfalls bei jedem Push.
+`node tests/e2e.mjs [URL]` spielt das Spiel im echten Browser (Playwright): Ansagen, Dialoge, Fokus, kaputte
+Spielstände und Links, Editor-Link, Offline-Start, Handy-Ansicht. `LW_BROWSER=firefox|webkit` wählt die Engine,
+lokal ohne Browser-Download mit `LW_CHANNEL=chrome`. Bei jedem Push in Chromium, Firefox und WebKit (Safari).
 
 `python tests/qr_check.py` (braucht opencv-python) liest 125 erzeugte QR-Codes mit zwei unabhängigen Decodern zurück.
 

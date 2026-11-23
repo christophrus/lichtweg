@@ -62,6 +62,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v26.4 – Browser-Test:** Playwright spielt das Spiel bei jedem Push in Chromium (14 Prüfungen, auch Editor →
   Link → Lösen und Offline-Start). Gegenproben:
   fängt den Ansage-Fehler aus v24 und einen Service Worker ohne Offline-Antwort.
+- **v26.5 – Drei Engines:** Der Browser-Test läuft in Chromium, Firefox und WebKit (Safari), dazu Handy-Ansicht
+  mit echtem Tippen. Alle drei grün.
 
 ## Als Nächstes
 
