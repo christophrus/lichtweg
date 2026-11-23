@@ -87,6 +87,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   Brett bekommt die volle Höhe: 38 bzw. 32 px pro Feld. Browser-Test prüft Größe und Überlappung.
 - **v27.7 – Editor quer:** Im Querformat schrumpfte das Editor-Brett unter der Werkzeugleiste auf 16 px pro Feld.
   Jetzt stehen die Werkzeuge als scrollbare Spalte links, das Brett hat 47 px pro Feld.
+- **v27.8 – QR-Code in seiner Karte:** Eine allgemeine `canvas`-Regel fürs Spielfeld (`position:fixed`) traf auch
+  den QR-Code und löste ihn aus seiner Karte; seit v27.2 schnitt die scrollende Karte ihn ab. Die Regel gilt jetzt nur
+  noch dem Spielfeld, und der QR-Code passt sich quer der Höhe an. Statischer und Browser-Test dazu.
 
 ## Als Nächstes
 

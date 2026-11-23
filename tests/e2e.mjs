@@ -176,6 +176,16 @@ if (engine === "chromium") {
       overlap: [...btns, $("stats"), $("hint")].filter(hit).map(e => e.id), inside: board.t >= 0 && board.b <= innerHeight && board.r <= innerWidth };
   });
   check("Handy quer: Felder groß, nichts überdeckt das Brett", q.cs >= 34 && !q.small && !q.overlap.length && q.inside, JSON.stringify(q));
+  // QR-Code steht in seiner Karte, quer und hochkant (eine allgemeine canvas-Regel hatte ihn herausgelöst)
+  for (const [w, h] of [[667, 375], [375, 667]]) {
+    await p.setViewportSize({ width: w, height: h });
+    await p.evaluate(() => showQR(location.href)); await p.waitForTimeout(450);
+    const r = await p.evaluate(() => { const c = $("qrBox").querySelector(".card").getBoundingClientRect(), q = $("qrCanvas").getBoundingClientRect();
+      return { inCard: q.top >= c.top && q.bottom <= c.bottom && q.left >= c.left && q.right <= c.right, onScreen: c.top >= 0 && c.bottom <= innerHeight, size: Math.round(q.width) }; });
+    check(`QR-Code ganz in seiner Karte (${w}×${h})`, r.inCard && r.onScreen && r.size >= 140, JSON.stringify(r));
+    await p.evaluate(() => closeQR());
+  }
+  await p.setViewportSize({ width: 667, height: 375 });
   // Editor quer: Werkzeugspalte links neben dem Brett, bis „Fertig“ scrollbar
   await p.evaluate(() => openEditor()); await p.waitForFunction(() => mode === "edit");
   const e = await p.evaluate(() => { const t = $("tools").getBoundingClientRect(); $("edone").scrollIntoView({ block: "nearest" });

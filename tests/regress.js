@@ -106,6 +106,7 @@ check("aria-Verweise zeigen auf vorhandene IDs", !aria.length, aria.join(", "));
 // 9. Kleine Fallen, die schon einmal zugeschnappt sind
 check("Kein festes „Züge“ hinter einer Zahl (1 Zug, 2 Züge)", !/\}\s*Züge/.test(script));
 check("Kein innerText (liefert bei unsichtbaren Karten nichts)", !/\.innerText\b/.test(script));
+check("Keine allgemeine canvas-Regel (riss den QR-Code aus seiner Karte)", !/^\s*canvas\s*[{,]/m.test(markup));
 check("Zoomen erlaubt (kein maximum-scale, kein user-scalable=no)", !/maximum-scale|user-scalable\s*=\s*no/i.test(markup));
 
 console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen.` : "\nAlles in Ordnung.");

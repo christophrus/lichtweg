@@ -28,7 +28,7 @@
   * { box-sizing: border-box; }
   html, body { margin:0; height:100%; background:#070a16; color:var(--ink);
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif; overflow:hidden; user-select:none; }
-  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:manipulation; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:manipulation; }
   #hud { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; justify-content:space-between;
     padding:max(14px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 14px max(18px, env(safe-area-inset-left));
     pointer-events:none; gap:12px; }
@@ -84,7 +84,7 @@
     visibility:hidden; transition:opacity .35s, background .35s, visibility 0s linear .35s; }
   .overlay.show { opacity:1; pointer-events:auto; background:rgba(3,5,12,.55); visibility:visible; transition:opacity .35s, background .35s; }
   .overlay.show .card { transform:none; }
-  #qrCanvas { width:min(260px, 70vw); height:auto; border-radius:10px; image-rendering:pixelated; display:block; margin:6px auto 0; }
+  #qrCanvas { width:min(260px, 70vw, calc(100vh - 170px)); width:min(260px, 70vw, calc(100dvh - 170px)); height:auto; border-radius:10px; image-rendering:pixelated; display:block; margin:6px auto 0; }
   #qrBox { z-index:5; }
   #levelGrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(56px, 1fr)); gap:8px; width:min(480px, 78vw);
     max-height:52vh; overflow:auto; margin:14px 0 18px; padding:4px; }
