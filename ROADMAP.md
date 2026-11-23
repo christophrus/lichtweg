@@ -59,6 +59,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   sonntags sagt der Hinweis, was Strahlteiler und Prisma tun.
 - **v26.3:** Gewinn-Ansage für Screenreader wieder vollständig (seit v24 nur „Gelöst!“), jetzt mit Sternen;
   „1 Zug“ statt „1 Züge“ überall. Tagesrätsel über Mitternacht geprüft: Ergebnis und Serie stimmen.
+- **v26.4 – Browser-Test:** Playwright spielt das Spiel bei jedem Push in Chromium (9 Prüfungen). Gegenprobe:
+  fängt den Ansage-Fehler aus v24, den der Logiktest nicht sehen konnte.
 
 ## Als Nächstes
 

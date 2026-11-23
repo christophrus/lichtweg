@@ -65,6 +65,9 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 Vor jeder Änderung am Generator laufen lassen.
 Läuft außerdem bei jedem Push automatisch (GitHub Actions).
 
+`node tests/e2e.mjs [URL]` spielt das Spiel in echtem Chromium (Playwright): Ansagen, Dialoge, Fokus, kaputte
+Spielstände und Links. Lokal ohne Browser-Download mit `LW_CHANNEL=chrome`. Läuft ebenfalls bei jedem Push.
+
 `python tests/qr_check.py` (braucht opencv-python) liest 125 erzeugte QR-Codes mit zwei unabhängigen Decodern zurück.
 
 Was als Nächstes kommt: [ROADMAP.md](ROADMAP.md)
