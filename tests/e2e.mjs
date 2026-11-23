@@ -50,6 +50,18 @@ const solve = p => p.evaluate(() => { for (const c of L.grid.flat()) if (c.t ===
   await p.waitForSelector("#levels.show");
   const inside = await p.evaluate(() => !!document.activeElement.closest("#levels"));
   check("Levelübersicht holt den Fokus", inside);
+  // Tab bleibt im Dialog, auch rückwärts
+  let out = 0;
+  for (let i = 0; i < 30; i++) { await p.keyboard.press(i < 20 ? "Tab" : "Shift+Tab"); if (!(await p.evaluate(() => !!document.activeElement.closest("#levels")))) out++; }
+  check("Tab bleibt in der Levelübersicht", !out, out + "× draußen");
+  // Pfeiltasten im Levelraster: rechts = nächstes Level, runter = eine Zeile tiefer, gleiche Spalte
+  await p.evaluate(() => { save.unlocked = 30; closeLevels(); openLevels(); $("levelGrid").querySelector("button").focus(); });
+  await p.keyboard.press("ArrowRight");
+  const right = await p.evaluate(() => document.activeElement.textContent.trim());
+  await p.keyboard.press("ArrowDown");
+  const down = await p.evaluate(() => { const a = document.activeElement, b = $("levelGrid").querySelectorAll("button")[1];
+    return [a.textContent.trim(), Math.abs(a.getBoundingClientRect().left - b.getBoundingClientRect().left) < 2, a.getBoundingClientRect().top > b.getBoundingClientRect().top]; });
+  check("Pfeiltasten wandern durchs Levelraster", right === "2" && down[1] && down[2], `${right} → ${down[0]}`);
   await p.keyboard.press("Escape");
   await p.context().close();
 }

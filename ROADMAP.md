@@ -79,6 +79,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   nachgeholte Ergebnisse nennen keine Serie mehr.
 - **v27.4 – Tages-Links erklären sich:** Ein `#tag=`-Link auf einen Tag, der hier noch nicht begonnen hat (Freundin
   in einer früheren Zeitzone), vor #1 liegt oder kaputt ist, lädt das heutige Rätsel und sagt, warum.
+- **v27.5 – Tastatur in Dialogen:** Tab blieb nicht im offenen Dialog und landete bei den Knöpfen dahinter,
+  obwohl `aria-modal` das verspricht. Jetzt kreist der Fokus im Dialog. Im Level- und Kalenderraster wandern die
+  Pfeiltasten nach Lage (rechts/links/hoch/runter) statt 400 Mal Tab.
 
 ## Als Nächstes
 
