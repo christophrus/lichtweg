@@ -1,6 +1,6 @@
 // Service Worker für Lichtweg: macht das Spiel offline spielbar.
 // Die Seite selbst kommt "network first" (Updates sind sofort da), alles andere aus dem Cache.
-const CACHE = "lichtweg-v1";
+const CACHE = "lichtweg-v2";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png",
@@ -22,7 +22,7 @@ self.addEventListener("fetch", ev => {
   if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
   if (req.mode === "navigate") {
     ev.respondWith(fetch(req)
-      .then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put("./index.html", copy)); } return res; })
+      .then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => Promise.all([c.put("./index.html", copy.clone()), c.put("./", copy)])); } return res; })
       .catch(() => caches.match("./index.html")));
     return;
   }
