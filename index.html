@@ -42,27 +42,50 @@
   #daily.fresh::after { content:""; position:absolute; top:4px; right:4px; width:7px; height:7px; border-radius:50%;
     background:var(--gold); box-shadow:0 0 8px var(--gold); }
   .card p small { display:block; margin-top:8px; opacity:.75; }
+  button.title { background:none; border:none; padding:2px 4px 2px 0; text-align:left; border-radius:6px; }
+  button.title:hover:not(:disabled) { background:none; }
+  button.title:hover small, button.title:focus-visible small { color:var(--ink); }
+  .title small::after { content:" ▾"; opacity:.6; }
+  .overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; opacity:0;
+    transition:opacity .35s, background .35s; }
+  .overlay.show { opacity:1; pointer-events:auto; background:rgba(3,5,12,.55); }
+  .overlay.show .card { transform:none; }
+  #levelGrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(56px, 1fr)); gap:8px; width:min(480px, 78vw);
+    max-height:52vh; overflow:auto; margin:14px 0 18px; padding:4px; }
+  #levelGrid button { padding:8px 0 6px; display:flex; flex-direction:column; align-items:center; gap:2px; font-variant-numeric:tabular-nums; }
+  #levelGrid button small { font-size:10px; color:var(--gold); letter-spacing:1px; min-height:12px; }
+  #levelGrid button.cur { border-color:rgba(255,210,122,.7); background:rgba(255,210,122,.14); }
+  .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
   @media (max-width: 560px) {
     #hud { flex-wrap:wrap; padding:10px 12px; }
     #stats { order:3; width:100%; text-align:left; min-width:0; }
-    button { padding:7px 10px; }
+    .ctrl { gap:5px; }
+    button { padding:7px 9px; }
   }
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
+<canvas id="c" role="img" aria-label="Spielfeld. Pfeiltasten wählen einen Spiegel, Leertaste dreht ihn."></canvas>
 <div id="hud">
-  <div class="title">Lichtweg<small id="lvl">Level 1</small></div>
+  <button class="title" id="titleBtn" title="Levelübersicht (L)">Lichtweg<small id="lvl">Level 1</small></button>
   <div id="stats">Züge <b id="moves">0</b> · Ziel <b id="par">0</b></div>
   <div class="ctrl">
     <button id="daily" title="Tagesrätsel (T)">☀</button>
-    <button id="prev" title="Vorheriges Level (←)">‹</button>
+    <button id="prev" title="Vorheriges Level (P)">‹</button>
+    <button id="undo" title="Rückgängig (Z)">↶</button>
     <button id="reset" title="Neu starten (R)">↺</button>
-    <button id="next" title="Nächstes Level (→)">›</button>
+    <button id="next" title="Nächstes Level (N)">›</button>
     <button id="mute" title="Ton an/aus (M)">♪</button>
   </div>
 </div>
 <div id="hint"></div>
+<div id="sr" class="sr-only" aria-live="polite"></div>
+<div id="levels" class="overlay"><div class="card">
+  <h2>Level</h2>
+  <p id="levelsInfo"></p>
+  <div id="levelGrid"></div>
+  <div class="ctrl"><button id="closeLevels">Schließen</button></div>
+</div></div>
 <div id="win"><div class="card">
   <h2 id="winTitle">Licht gefunden</h2>
   <div class="stars" id="winStars"></div>
@@ -142,7 +165,7 @@ function generate(n, seed = n * 1000003) {
     grid[recv.y][recv.x] = { t: RECV };
     const crystals = [];
     R.shuffle(straight.slice()).slice(0, p.crystals).forEach((c, i) => {
-      const cell = { t: CRYSTAL, hue: HUES[i % HUES.length], x: c.x, y: c.y }; grid[c.y][c.x] = cell; crystals.push(cell); });
+      const cell = { t: CRYSTAL, hue: HUES[i % HUES.length], shape: i % 5, x: c.x, y: c.y }; grid[c.y][c.x] = cell; crystals.push(cell); });
     const pathMirrors = mirrors.map(m => {
       const cell = { t: MIRROR, o: m.o, locked: R.next() < p.lock, x: m.x, y: m.y }; grid[m.y][m.x] = cell; return cell; });
     const free = [];
@@ -235,6 +258,7 @@ const save = Object.assign({ unlocked: 1, stars: {}, current: 1 }, JSON.parse(lo
 save.daily = Object.assign({ results: {}, streak: 0, last: null, progress: null }, save.daily);
 const persist = () => localStorage.setItem("lichtweg", JSON.stringify(save));
 let mode = "level", L, T, shown = 0, moves = 0, won = false, litPrev = new Set(), hover = null, particles = [], winTimer = 0;
+let undoStack = [], cursor = null, cursorOn = false;
 const $ = id => document.getElementById(id);
 
 // ---------- Tagesrätsel: ein Level pro Kalendertag, für alle gleich ----------
@@ -261,6 +285,7 @@ function setHash(h) { if (location.hash !== h) history.replaceState(null, "", h 
 
 function startPlay(level, startMoves = 0) {
   L = level; T = trace(L); shown = 0; moves = startMoves; won = false; litPrev = new Set(); particles = [];
+  undoStack = []; cursor = null; updateUndo();
   clearTimeout(winTimer); $("win").classList.remove("show");
   $("par").textContent = L.par; $("moves").textContent = moves;
   updateDailyBadge(); layout();
@@ -293,15 +318,23 @@ function loadLevel(n) {
   const hints = {
     1: "Tippe auf einen Spiegel, um ihn zu drehen. Lenke das Licht durch den Kristall in die Linse.",
     2: "Jeder Kristall färbt das Licht, das ihn durchquert.",
+    3: "Verdreht? ↶ oder Z nimmt den letzten Zug zurück.",
     4: "Spiegel mit Nieten sind festgeschraubt.",
     7: "Nicht jeder Spiegel liegt auf dem Weg.",
   };
   $("hint").textContent = hints[n] || ""; $("hint").style.opacity = hints[n] ? 1 : 0;
 }
 
-function flip(c) {
+const updateUndo = () => { $("undo").disabled = won || !undoStack.length; };
+const say = msg => { $("sr").textContent = ""; setTimeout(() => { $("sr").textContent = msg; }, 40); };
+
+// isUndo: Zug zurücknehmen. In Leveln zählt das minus eins, im Tagesrätsel als eigener Zug (fair bleibt fair).
+function flip(c, isUndo = false) {
   if (won || !c || c.t !== MIRROR || c.locked) return;
-  c.o ^= 1; c.target += Math.PI / 2; moves++;
+  c.o ^= 1;
+  if (isUndo) c.target -= Math.PI / 2; else { c.target += Math.PI / 2; undoStack.push(c); }
+  moves += isUndo && mode === "level" ? -1 : 1;
+  updateUndo();
   $("moves").textContent = moves;
   const nt = trace(L);
   shown = Math.min(shown, commonDist(T.pts, nt.pts));
@@ -311,8 +344,10 @@ function flip(c) {
   if (mode === "daily" && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
 }
 
+function undo() { if (!won && undoStack.length) flip(undoStack.pop(), true); }
+
 function onWin() {
-  won = true;
+  won = true; updateUndo();
   [0, 2, 4, 7].forEach((i, k) => bell(note(i, 392), k * .11, .1));
   bell(note(5, 392), .55, .08);
   burst(L.recv._x, L.recv._y, L.recv._hue ?? 45, 70, 1.6);
@@ -344,6 +379,7 @@ function onWin() {
   }
   $("winStars").innerHTML = [1, 2, 3].map(i => `<span class="${i <= stars ? "on" : "off"}">★</span>`).join("");
   $("winText").innerHTML = text;
+  say(`Gelöst! ${$("winText").innerText.split("\n")[0]}`);
   winTimer = setTimeout(() => $("win").classList.add("show"), 1100);
 }
 
@@ -379,6 +415,17 @@ function layout() {
 addEventListener("resize", layout);
 
 const X = u => ox + u * cs, Y = u => oy + u * cs;
+// Jeder Kristall hat eine eigene Form, damit man sie nicht nur an der Farbe unterscheidet.
+function crystalPath(shape, r) {
+  ctx.beginPath();
+  const poly = (n, rad, rot, dy = 0) => { for (let i = 0; i < n; i++) { const a = rot + i * 2 * Math.PI / n; ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad + dy); } };
+  if (shape === 0) { ctx.moveTo(0, -r * 1.25); ctx.lineTo(r, 0); ctx.lineTo(0, r * 1.25); ctx.lineTo(-r, 0); }   // Raute
+  else if (shape === 1) poly(3, r * 1.3, -Math.PI / 2, r * .2);                                                  // Dreieck
+  else if (shape === 2) poly(6, r * 1.1, 0);                                                                     // Sechseck
+  else if (shape === 3) for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + i * Math.PI / 4, rr = i % 2 ? r * .5 : r * 1.25; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } // Stern
+  else ctx.arc(0, 0, r * 1.05, 0, 6.283);                                                                        // Kreis
+  ctx.closePath();
+}
 function burst(x, y, hue, n = 24, sp = 1) {
   for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = (40 + Math.random() * 160) * sp;
     particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, decay: .6 + Math.random() * .8, hue, r: 1 + Math.random() * 2 }); }
@@ -430,7 +477,8 @@ function frame(now) {
   // Strahl fortschreiten lassen
   shown = Math.min(T.dist, shown + dt * 13);
   const lit = new Set(); for (const e of T.events) if (e.dist <= shown) lit.add(e.cell);
-  for (const c of lit) if (!litPrev.has(c) && c.t === CRYSTAL) { bell(note(L.crystals.indexOf(c) + 2), 0, .09); burst(c._x, c._y, c.hue, 26); }
+  for (const c of lit) if (!litPrev.has(c) && c.t === CRYSTAL) { bell(note(L.crystals.indexOf(c) + 2), 0, .09); burst(c._x, c._y, c.hue, 26);
+    say(`Kristall leuchtet: ${L.crystals.filter(k => lit.has(k)).length} von ${L.crystals.length}`); }
   litPrev = lit;
   if (!won && shown >= T.dist && isSolved(L, T)) onWin();
   const secs = beamSections(); const finalHue = secs[secs.length - 1].hue;
@@ -501,11 +549,11 @@ function frame(now) {
     ctx.save(); ctx.translate(c._x, c._y);
     const sway = Math.sin(t * 1.3 + c.hue) * .08;
     ctx.rotate(sway);
-    ctx.beginPath(); ctx.moveTo(0, -r * 1.25); ctx.lineTo(r, 0); ctx.lineTo(0, r * 1.25); ctx.lineTo(-r, 0); ctx.closePath();
+    crystalPath(c.shape, r);
     ctx.fillStyle = on ? `hsla(${c.hue},90%,72%,.95)` : `hsla(${c.hue},40%,25%,.85)`; ctx.fill();
     ctx.strokeStyle = on ? `hsla(${c.hue},100%,92%,1)` : `hsla(${c.hue},60%,55%,.7)`; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r * 1.25); ctx.lineTo(r * .35, 0); ctx.lineTo(0, r * 1.25);
-    ctx.strokeStyle = on ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.12)"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.scale(.45, .45); crystalPath(c.shape, r);   // innere Facette
+    ctx.strokeStyle = on ? "rgba(255,255,255,.6)" : "rgba(255,255,255,.14)"; ctx.lineWidth = 1 / .45; ctx.stroke();
     ctx.restore();
   }
   { const c = L.recv, on = lit.has(c), hue = on ? finalHue : 42;
@@ -517,6 +565,14 @@ function frame(now) {
     ctx.strokeStyle = on ? `hsla(${hue},100%,80%,1)` : "rgba(255,210,122,.45)"; ctx.lineWidth = Math.max(2, cs * .05); ctx.stroke();
     ctx.beginPath(); ctx.arc(c._x, c._y, cs * .17, 0, 6.283);
     ctx.fillStyle = on ? `hsla(${hue},100%,85%,1)` : "rgba(255,210,122,.12)"; ctx.fill();
+  }
+
+  // Tastatur-Auswahlrahmen
+  if (cursorOn && cursor && !won) {
+    const cx = ox + (cursor.x + .5) * cs, cy = oy + (cursor.y + .5) * cs;
+    ctx.save(); ctx.strokeStyle = `rgba(255,220,150,${.65 + .3 * Math.sin(t * 5)})`; ctx.lineWidth = 2;
+    ctx.setLineDash([cs * .14, cs * .09]); ctx.lineDashOffset = -t * 18;
+    roundRect(cx - cs * .47, cy - cs * .47, cs * .94, cs * .94, cs * .14); ctx.stroke(); ctx.restore();
   }
 
   // Partikel
@@ -536,22 +592,79 @@ function cellAt(ev) {
   return x >= 0 && y >= 0 && x < L.size && y < L.size ? L.grid[y][x] : null;
 }
 cv.addEventListener("pointermove", ev => { hover = cellAt(ev); cv.style.cursor = hover && hover.t === MIRROR && !hover.locked && !won ? "pointer" : "default"; });
-cv.addEventListener("pointerdown", ev => { audio(); flip(cellAt(ev)); });
+cv.addEventListener("pointerdown", ev => { audio(); cursorOn = false; flip(cellAt(ev)); });
 const restart = () => mode === "daily" ? loadDaily() : loadLevel(L.n);
 const proceed = () => mode === "daily" ? loadLevel(save.current || 1) : loadLevel(L.n + 1);
 const toggleDaily = () => mode === "daily" ? loadLevel(save.current || 1) : loadDaily();
+const nextLevel = () => { if (mode === "level" && L.n < save.unlocked) loadLevel(L.n + 1); };
+const prevLevel = () => { if (mode === "level" && L.n > 1) loadLevel(L.n - 1); };
+
+// Pfeiltasten: zum nächstgelegenen drehbaren Spiegel in dieser Richtung springen, sonst ein Feld weiter.
+function moveCursor(d) {
+  if (!cursorOn || !cursor) {
+    cursorOn = true;
+    if (!cursor) { const m = L.grid.flat().find(c => c.t === MIRROR && !c.locked); cursor = m ? { x: m.x, y: m.y } : { x: L.src.x, y: L.src.y }; }
+    return;
+  }
+  let best = null, bestScore = Infinity;
+  for (const c of L.grid.flat()) {
+    if (c.t !== MIRROR || c.locked) continue;
+    const vx = c.x - cursor.x, vy = c.y - cursor.y, along = vx * DX[d] + vy * DY[d], side = Math.abs(vx * DY[d] - vy * DX[d]);
+    if (along <= 0 || side > along * 2) continue;
+    const score = along + side * 2;
+    if (score < bestScore) { bestScore = score; best = c; }
+  }
+  if (best) cursor = { x: best.x, y: best.y };
+  else cursor = { x: Math.max(0, Math.min(L.size - 1, cursor.x + DX[d])), y: Math.max(0, Math.min(L.size - 1, cursor.y + DY[d])) };
+}
+
+function openLevels() {
+  const g = $("levelGrid"); g.innerHTML = "";
+  const total = Math.max(10, Math.ceil(save.unlocked / 10) * 10);
+  let sum = 0;
+  for (let n = 1; n <= total; n++) {
+    const open = n <= save.unlocked, st = save.stars[n] || 0, b = document.createElement("button");
+    sum += st; b.disabled = !open;
+    b.innerHTML = `${n}<small>${open ? "★".repeat(st) : "🔒"}</small>`;
+    b.setAttribute("aria-label", open ? `Level ${n}, ${st} Sterne` : `Level ${n}, gesperrt`);
+    if (mode === "level" && L.n === n) b.className = "cur";
+    b.onclick = () => { closeLevels(); loadLevel(n); };
+    g.append(b);
+  }
+  $("levelsInfo").textContent = `${save.unlocked - 1} gelöst · ${sum} von ${(save.unlocked - 1) * 3} Sternen`;
+  $("levels").classList.add("show");
+  const cur = g.querySelector(".cur") || g.querySelectorAll("button:not(:disabled)")[save.unlocked - 1];
+  if (cur) { cur.scrollIntoView({ block: "nearest" }); cur.focus({ preventScroll: true }); }
+}
+function closeLevels() { $("levels").classList.remove("show"); }
+
+const ARROWS = { arrowright: 0, arrowdown: 1, arrowleft: 2, arrowup: 3 };
 addEventListener("keydown", ev => {
   const k = ev.key.toLowerCase();
-  if (k === "r") restart();
+  if ((ev.ctrlKey || ev.metaKey) && k === "z") { ev.preventDefault(); undo(); return; }
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  if ($("levels").classList.contains("show")) { if (k === "escape" || k === "l") closeLevels(); return; }
+  if (ev.target.tagName === "BUTTON" && (k === " " || k === "enter")) return;   // fokussierter Button bedient sich selbst
+  if (k in ARROWS) { ev.preventDefault(); moveCursor(ARROWS[k]); }
+  else if (k === " " || (k === "enter" && !won)) { ev.preventDefault(); if (cursorOn && cursor) flip(L.grid[cursor.y][cursor.x]); else moveCursor(0); }
+  else if (k === "enter") proceed();
+  else if (k === "r") restart();
+  else if (k === "z" || k === "backspace") undo();
   else if (k === "t") toggleDaily();
   else if (k === "m") toggleMute();
-  else if ((k === "n" || k === "enter") && won) proceed();
-  else if (mode === "level" && k === "arrowright") loadLevel(L.n + 1);
-  else if (mode === "level" && k === "arrowleft") loadLevel(L.n - 1);
+  else if (k === "l") openLevels();
+  else if (k === "n") won ? proceed() : nextLevel();
+  else if (k === "p") prevLevel();
 });
 function toggleMute() { muted = !muted; localStorage.setItem("lichtweg-muted", muted ? "1" : "0"); $("mute").style.opacity = muted ? .4 : 1; }
-$("prev").onclick = () => loadLevel(L.n - 1);
-$("next").onclick = () => loadLevel(L.n + 1);
+$("prev").onclick = prevLevel;
+$("next").onclick = nextLevel;
+$("undo").onclick = undo;
+$("titleBtn").onclick = openLevels;
+$("closeLevels").onclick = closeLevels;
+$("levels").addEventListener("pointerdown", ev => { if (ev.target === $("levels")) closeLevels(); });
+// Nach Mausklick den Fokus vom Button nehmen, damit Leertaste wieder den Spiegel dreht
+document.addEventListener("pointerup", ev => { const b = ev.target.closest("button"); if (b) b.blur(); });
 $("reset").onclick = restart;
 $("again").onclick = restart;
 $("go").onclick = proceed;

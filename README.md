@@ -4,7 +4,10 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 
 **Spielen:** https://christophrus.github.io/lichtweg/ · **Tagesrätsel:** https://christophrus.github.io/lichtweg/#heute
 
-- **Steuerung:** Klick/Tippen dreht einen Spiegel · `R` Neustart · `←`/`→` Level · `T` Tagesrätsel · `M` Ton.
+- **Steuerung:** Klick/Tippen dreht einen Spiegel · `Z` / ↶ Rückgängig · `R` Neustart · `T` Tagesrätsel · `M` Ton.
+  Ein Klick auf den Titel oder `L` öffnet die Levelübersicht. `N`/`P` wechseln zum nächsten oder vorherigen Level.
+- **Nur mit Tastatur:** Pfeiltasten springen von Spiegel zu Spiegel, die Leertaste dreht ihn.
+- **Ohne Farben unterscheidbar:** Jeder Kristall hat seine eigene Form (Raute, Dreieck, Sechseck, Stern, Kreis).
 - **Level:** unendlich viele, fest aus der Levelnummer erzeugt. Der Generator legt zuerst einen
   Lösungsweg, setzt Spiegel an die Knicke und verdreht sie danach. So ist jedes Level garantiert lösbar.
   „Ziel“ ist die Zahl der verdrehten Spiegel.
