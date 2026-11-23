@@ -692,9 +692,16 @@ function loadDaily() {
   $("hint").textContent = done
     ? tx(`Heute gelöst: ${done.moves} Züge ${starText(done.stars)}. Weitere Versuche zählen nicht.`,
       `Solved today: ${done.moves} ${mv(done.moves)} ${starText(done.stars)}. Further tries don't count.`)
-    : (isSunday(t) ? tx("Sonntagsrätsel: heute mit Strahlteiler und Prisma. ", "Sunday puzzle: with a beam splitter and a prism. ")
-      : hasPortal(lv) ? tx("Portal-Mittwoch: Licht, das in ein Portal fällt, kommt am Partner wieder heraus. ", "Portal Wednesday: light entering a portal comes out of its partner. ")
-      : tx("Jeden Tag ein neues Rätsel, für alle gleich. ", "A new puzzle every day, the same for everyone. "))
+    : (() => {
+      // Farbtore kennt erst, wer Level 10 geschafft hat. Wer nur Tagesrätsel spielt, bekommt sie hier erklärt.
+      const gate = lv.grid.flat().some(c => c.t === GATE) && save.unlocked <= GATE_LEVEL
+        ? tx("Farbtore lassen nur Licht in ihrer Farbe durch, das Zeichen zeigt den passenden Kristall. ", "Colour gates only let light of their colour through, the symbol shows the matching crystal. ") : "";
+      const day = isSunday(t) ? tx("Sonntagsrätsel: Der Strahlteiler schickt das Licht in zwei Richtungen, das Prisma spiegelt nur auf seiner hellen Seite. ",
+          "Sunday puzzle: the beam splitter sends light two ways, the prism only reflects on its bright side. ")
+        : hasPortal(lv) ? tx("Portal-Mittwoch: Licht, das in ein Portal fällt, kommt am Partner wieder heraus. ", "Portal Wednesday: light entering a portal comes out of its partner. ")
+        : gate ? tx("Neu: ", "New: ") : tx("Jeden Tag ein neues Rätsel, für alle gleich. ", "A new puzzle every day, the same for everyone. ");
+      return day + gate;
+    })()
       + tx("Es zählen alle Züge bis zur Lösung, auch über Neustarts hinweg.", "Every move until the solution counts, even across restarts.");
   $("hint").style.opacity = 1;
   layout();
