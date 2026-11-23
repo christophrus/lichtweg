@@ -506,7 +506,10 @@ function tone(freq, dur, vol = .15, type = "sine", delay = 0) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .05);
 }
 // Sanfte Vibration auf Handys; folgt dem Ton-Schalter
-const buzz = pattern => { if (!muted && navigator.vibrate && navigator.userActivation?.hasBeenActive !== false) try { navigator.vibrate(pattern); } catch {} };
+// Vibration erst nach einer echten Berührung: Chrome verweigert sie sonst und meldet das in der Konsole.
+let touched = false;
+addEventListener("pointerdown", ev => { if (ev.isTrusted) touched = true; }, { capture: true, passive: true });
+const buzz = pattern => { if (!muted && touched && navigator.vibrate) try { navigator.vibrate(pattern); } catch {} };
 const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
 const note = (i, base = 523.25) => base * Math.pow(2, PENTA[i % PENTA.length] / 12);
 // Leiser Klangteppich: ein Grundton, und jeder leuchtende Kristall bringt eine Stimme dazu (C-Pentatonik wie die Glocken).
@@ -1330,6 +1333,7 @@ function frame(now) {
   }
 
   // Lichtstrahl (additiv)
+  const marks = [];
   ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round"; ctx.lineJoin = "round";
   const flick = .9 + .1 * Math.sin(t * 23) * Math.sin(t * 7);
   for (const b of T.beams) {
@@ -1342,6 +1346,8 @@ function frame(now) {
         ctx.strokeStyle = i === 3 ? `rgba(255,255,255,${a * flick})` : `hsla(${s.hue},95%,${s.hue === GOLD ? 66 : 62}%,${a * flick})`;
         strokeRange(b, s.from, s.to);
       });
+      const shape = HUES.indexOf(s.hue);   // Form der Farbe auf dem Strahl, damit man sie auch ohne Farbsehen erkennt
+      if (shape >= 0) for (let d = s.from + .5; d < s.to - .2; d += 1) marks.push({ ...pointAt(b, d), shape });
     }
     if (shown < b.end) { const h = pointAt(b, shown), hg = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, cs * .35);
       hg.addColorStop(0, "rgba(255,255,255,.9)"); hg.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(h.x, h.y, cs * .35, 0, 6.283); ctx.fill(); }
@@ -1386,6 +1392,9 @@ function frame(now) {
   }
 
   // Tastatur-Auswahlrahmen
+  // Formzeichen auf farbigem Licht, nicht additiv, damit sie dunkel auf dem hellen Strahl stehen
+  for (const m of marks) { ctx.save(); ctx.translate(m.x, m.y); crystalPath(m.shape, cs * .085);
+    ctx.fillStyle = "rgba(10,14,34,.72)"; ctx.fill(); ctx.restore(); }
   if (cursorOn && cursor && !won) {
     const cx = ox + (cursor.x + .5) * cs, cy = oy + (cursor.y + .5) * cs;
     ctx.save(); ctx.strokeStyle = `rgba(255,220,150,${.65 + .3 * Math.sin(t * 5)})`; ctx.lineWidth = 2;
