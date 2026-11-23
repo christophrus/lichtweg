@@ -4,7 +4,8 @@
 import { chromium } from "playwright";
 
 const base = process.argv[2] || "http://localhost:8765/";
-const browser = await chromium.launch();
+// Lokal ohne Browser-Download: LW_CHANNEL=chrome nimmt das installierte Chrome
+const browser = await chromium.launch(process.env.LW_CHANNEL ? { channel: process.env.LW_CHANNEL } : {});
 let failed = 0;
 const check = (name, ok, detail = "") => { console.log(`${ok ? "ok  " : "FEHLER"} ${name}${detail ? " – " + detail : ""}`); if (!ok) failed++; };
 
