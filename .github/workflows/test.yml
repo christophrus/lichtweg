@@ -28,13 +28,19 @@ jobs:
       - run: pip install numpy opencv-python-headless
       - run: python tests/qr_check.py
   e2e:
-    # Spielt das Spiel in echtem Chromium (Ansagen, Dialoge, Fokus, Ladefehler)
+    # Spielt das Spiel in drei Browser-Engines (WebKit = Safari, also jedes iPhone)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-save playwright@1 && npx playwright install --with-deps chromium
+      - run: npm install --no-save playwright@1 && npx playwright install --with-deps ${{ matrix.browser }}
       - run: python3 -m http.server 8765 &
       - run: node tests/e2e.mjs http://localhost:8765/
+        env:
+          LW_BROWSER: ${{ matrix.browser }}

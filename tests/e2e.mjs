@@ -1,11 +1,14 @@
 // Browser-Test für Lichtweg: spielt das Spiel in echtem Chromium und prüft, was regress.js nicht sehen kann
 // (Ansagen, Dialoge, Fokus, Fehler beim Laden). Aufruf: node tests/e2e.mjs [URL], Standard http://localhost:8765/
 // Braucht Playwright (npm i playwright && npx playwright install chromium); läuft in GitHub Actions.
-import { chromium } from "playwright";
+// LW_BROWSER=chromium|firefox|webkit wählt die Engine (WebKit = Safari, also jedes iPhone).
+import * as pw from "playwright";
 
 const base = process.argv[2] || "http://localhost:8765/";
+const engine = process.env.LW_BROWSER || "chromium";
 // Lokal ohne Browser-Download: LW_CHANNEL=chrome nimmt das installierte Chrome
-const browser = await chromium.launch(process.env.LW_CHANNEL ? { channel: process.env.LW_CHANNEL } : {});
+const browser = await pw[engine].launch(process.env.LW_CHANNEL ? { channel: process.env.LW_CHANNEL } : {});
+console.log("Engine:", engine);
 let failed = 0;
 const check = (name, ok, detail = "") => { console.log(`${ok ? "ok  " : "FEHLER"} ${name}${detail ? " – " + detail : ""}`); if (!ok) failed++; };
 
@@ -110,7 +113,8 @@ const solve = p => p.evaluate(() => { for (const c of L.grid.flat()) if (c.t ===
 }
 
 // 7. Offline: Nach dem ersten Besuch lädt das Spiel ohne Netz aus dem Service Worker
-{
+//    (nur Chromium: Playwright kann den Service Worker in Firefox/WebKit nicht offline schalten)
+if (engine === "chromium") {
   const ctx = await browser.newContext({ locale: "de-DE" });
   const p = await ctx.newPage();
   await p.goto(base);
@@ -119,6 +123,27 @@ const solve = p => p.evaluate(() => { for (const c of L.grid.flat()) if (c.t ===
   await ctx.setOffline(true);
   const ok = await p.reload().then(() => p.waitForFunction(() => typeof L !== "undefined" && L, null, { timeout: 8000 })).then(() => true, () => false);
   check("Offline spielbar nach dem ersten Besuch", ready && ok);
+  await ctx.close();
+}
+
+// 8. Handy: keine waagrechte Scrollleiste, Spielknöpfe groß genug zum Tippen
+{
+  const ctx = await browser.newContext({ locale: "de-DE", viewport: { width: 375, height: 667 }, serviceWorkers: "block",
+    ...(engine === "firefox" ? {} : { isMobile: true, hasTouch: true }) });
+  const p = await ctx.newPage();
+  await p.goto(base);
+  await p.waitForFunction(() => typeof L !== "undefined" && L);
+  const m = await p.evaluate(() => ({
+    overflow: document.documentElement.scrollWidth > innerWidth + 1,
+    small: [...document.querySelectorAll("#hud > .ctrl button")].map(b => b.getBoundingClientRect()).filter(r => r.width < 36 || r.height < 40).length,
+    board: cs * L.size <= innerWidth }));
+  check("Handy: keine Scrollleiste, Brett passt", !m.overflow && m.board, JSON.stringify(m));
+  check("Handy: Spielknöpfe mindestens 36×40 px", !m.small, m.small + " zu klein");
+  // Tippen auf einen Spiegel dreht ihn (echter Touch, wo die Engine es kann)
+  const turned = await p.evaluate(() => { const c = L.grid.flat().find(rotatable); return [c._x, c._y, c.o]; });
+  if (engine === "firefox") await p.mouse.click(turned[0], turned[1]); else await p.touchscreen.tap(turned[0], turned[1]);
+  const after = await p.evaluate(([x, y]) => { const c = L.grid.flat().find(rotatable); return c.o; }, turned);
+  check("Handy: Tippen dreht den Spiegel", after !== turned[2]);
   await ctx.close();
 }
 
