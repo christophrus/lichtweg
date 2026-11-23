@@ -7,7 +7,8 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 - **Steuerung:** Klick/Tippen dreht einen Spiegel · `Z` / ↶ Rückgängig · `R` Neustart · `T` Tagesrätsel · `M` Ton · `H` / ? Tipp.
   Ein Klick auf den Titel oder `L` öffnet die Levelübersicht. `N`/`P` wechseln zum nächsten oder vorherigen Level.
 - **Nur mit Tastatur:** Pfeiltasten springen von Spiegel zu Spiegel, die Leertaste dreht ihn. Ein Screenreader sagt an, welches Teil gewählt ist,
-  wie es steht und woher das Licht kommt und wohin es geht.
+  wie es steht und woher das Licht kommt und wohin es geht. `B` beschreibt das ganze Brett: Quelle, Kristalle, Tore,
+  Portale, Linsen und wo das Licht endet.
 - **Ohne Farben unterscheidbar:** Jeder Kristall hat seine eigene Form (Raute, Dreieck, Sechseck, Stern, Kreis). Gefärbtes Licht trägt die Form seines Kristalls als kleine Zeichen auf dem Strahl.
 - **Level:** unendlich viele, fest aus der Levelnummer erzeugt. Der Generator legt zuerst einen
   Lösungsweg, setzt Spiegel an die Knicke und verdreht sie danach. So ist jedes Level garantiert lösbar.

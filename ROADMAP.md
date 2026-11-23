@@ -40,6 +40,7 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v21 – Formen auf dem Strahl:** Farbiges Licht zeigt die Form seines Kristalls, so sind Farbtore auch ohne
   Farbsehen lesbar. Vibration erst nach einer echten Berührung.
 - **v22 – Ansagen beim Spielen:** Screenreader beschreiben das gewählte Teil (Stellung, helle Seite, Lichtweg).
+- **v23 – Brett in Worten:** Taste `B` sagt das ganze Brett an, samt erreichten Linsen und Ende des Lichts.
 
 ## Als Nächstes
 

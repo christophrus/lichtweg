@@ -102,7 +102,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" role="img" aria-label="Spielfeld. Pfeiltasten wählen einen Spiegel, Leertaste dreht ihn."></canvas>
+<canvas id="c" role="img" aria-label="Spielfeld. Pfeiltasten wählen einen Spiegel, Leertaste dreht ihn, B beschreibt das Brett."></canvas>
 <div id="hud">
   <button class="title" id="titleBtn" title="Levelübersicht (L)">Lichtweg<small id="lvl">Level 1</small></button>
   <div id="stats">Züge <b id="moves">0</b> · Ziel <b id="par">0</b></div>
@@ -1451,6 +1451,32 @@ function describeCell(c) {
   }
   return `${tx("Spalte", "Column")} ${c.x + 1}, ${tx("Reihe", "row")} ${c.y + 1}: ${name}. ${light}`;
 }
+// Taste B: das ganze Brett in Worten, für Screenreader
+function describeBoard() {
+  const pos = c => c.x !== undefined ? c : (() => { for (let y = 0; y < L.size; y++) { const x = L.grid[y].indexOf(c); if (x >= 0) return { x, y }; } return { x: 0, y: 0 }; })();
+  const at = c => { const p = pos(c); return `${tx("Spalte", "column")} ${p.x + 1} ${tx("Reihe", "row")} ${p.y + 1}`; };
+  const to = EN ? ["right", "down", "left", "up"] : ["nach rechts", "nach unten", "nach links", "nach oben"];
+  const shapes = EN ? ["diamond", "triangle", "hexagon", "star", "circle"] : ["Raute", "Dreieck", "Sechseck", "Stern", "Kreis"];
+  const on = new Set(T.events.map(e => e.cell)), all = L.grid.flat(), parts = [];
+  const lit = c => on.has(c) ? tx("leuchtet", "lit") : tx("dunkel", "dark");
+  parts.push(tx(`Brett ${L.size} mal ${L.size}.`, `Board ${L.size} by ${L.size}.`));
+  if (L.src) parts.push(tx(`Quelle ${at(L.src)}, strahlt ${to[L.src.d]}.`, `Source at ${at(L.src)}, shining ${to[L.src.d]}.`));
+  if (L.crystals.length) parts.push(tx("Kristalle: ", "Crystals: ") + L.crystals.map(c => `${shapes[c.shape]} ${at(c)}, ${lit(c)}`).join("; ") + ".");
+  const gates = all.filter(c => c.t === GATE);
+  if (gates.length) parts.push(tx("Tore: ", "Gates: ") + gates.map(c => `${c.shape < 0 ? tx("golden", "gold") : shapes[c.shape]} ${at(c)}${T.blocked.includes(c) ? tx(", blockiert", ", blocking") : ""}`).join("; ") + ".");
+  const ports = all.filter(c => c.t === PORTAL);
+  if (ports.length) parts.push(tx("Portale: ", "Portals: ") + ports.map(at).join("; ") + ".");
+  parts.push(tx(`Linsen ${L.recvs.filter(c => on.has(c)).length} von ${L.recvs.length} erreicht: `, `Lenses ${L.recvs.filter(c => on.has(c)).length} of ${L.recvs.length} reached: `)
+    + L.recvs.map(c => `${at(c)}, ${lit(c)}`).join("; ") + ".");
+  const turn = all.filter(rotatable).length, fixed = all.filter(c => c.t === MIRROR && c.locked).length;
+  parts.push(tx(`${turn} drehbare Teile`, `${turn} turnable pieces`) + (fixed ? tx(`, ${fixed} feste Spiegel.`, `, ${fixed} fixed mirrors.`) : "."));
+  const ends = T.beams.filter(b => !b.events.some(e => e.cell.t === RECV || e.cell.t === PORTAL) && b.pts.length > 1).map(b => {
+    const P = b.pts, a = P[P.length - 2], z = P[P.length - 1], dx = Math.sign(z.x - a.x), dy = Math.sign(z.y - a.y);
+    const mid = Math.abs(z.x % 1 - .5) < 1e-6 && Math.abs(z.y % 1 - .5) < 1e-6;   // endet mitten im Feld (Rückseite eines Prismas)
+    return at({ x: Math.floor(mid ? z.x : z.x - dx * .9), y: Math.floor(mid ? z.y : z.y - dy * .9) }); });
+  if (ends.length) parts.push(tx("Licht endet bei ", "Light ends at ") + [...new Set(ends)].join("; ") + ".");
+  return parts.join(" ");
+}
 function moveCursor(d) {
   if (!cursorOn || !cursor) {
     cursorOn = true;
@@ -1538,6 +1564,7 @@ addEventListener("keydown", ev => {
   else if (k === "t") toggleDaily();
   else if (k === "m") toggleMute();
   else if (k === "h") showTip();
+  else if (k === "b") say(describeBoard());
   else if (k === "l") openLevels();
   else if (k === "n") won ? proceed() : nextLevel();
   else if (k === "p") prevLevel();
@@ -1592,7 +1619,7 @@ setInterval(updateDailyBadge, 60000);
 if (EN) {
   document.documentElement.lang = "en";
   const set = (id, text, title) => { const e = $(id); if (text != null) e.textContent = text; if (title) e.title = title; };
-  $("c").setAttribute("aria-label", "Board. Arrow keys select a mirror, space turns it.");
+  $("c").setAttribute("aria-label", "Board. Arrow keys select a mirror, space turns it, B describes the board.");
   set("titleBtn", null, "Level overview (L)"); $("titleBtn").firstChild.textContent = "Lichtweg";
   $("stats").innerHTML = 'Moves <b id="moves">0</b> · Target <b id="par">0</b>';
   set("daily", null, "Daily puzzle (T)"); set("prev", null, "Previous level (P)"); set("undo", null, "Undo (Z)");
