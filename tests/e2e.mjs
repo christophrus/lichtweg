@@ -222,7 +222,8 @@ if (engine === "chromium") {
     while (rotatable(c) && g++ < 4 && (c.t === PRISM ? c.r !== c.sol : c.solO !== undefined && c.o !== c.solO)) flip(c); } });
   await p.waitForSelector("#win.show", { timeout: 8000 });
   const d = await p.evaluate(() => save.daily);
-  check("Nachgeholt steht im Kalender", d.results["2026-11-30"]?.late === true);
+  const lateCell = await p.evaluate(() => { openLevels(); const b = $("cal").querySelector('button[aria-label*="30.11."]'); const out = [b.className, b.getAttribute("aria-label")]; closeLevels(); return out; });
+  check("Nachgeholt steht im Kalender, erkennbar als nachgeholt", d.results["2026-11-30"]?.late === true && /late/.test(lateCell[0]) && /nachgeholt/.test(lateCell[1]), lateCell.join(" | "));
   const shared = await p.evaluate(() => dailyShareText());
   check("Geteilt wird der Tag, nicht heute, und keine Serie", /#tag=2026-11-30$/.test(shared) && /nachgeholt/.test(shared) && !/Serie/.test(shared), shared);
   // 30.11. gelöst; 1.12. und 2.12. sind offen -> weiter zum 1.12.

@@ -69,6 +69,7 @@
   #cal > button { cursor:pointer; } #cal > button:hover { background:rgba(255,255,255,.2); color:#fff; }
   #cal .s2, #cal .s3 { color:#1a1530; }
   #cal .s1 { background:rgba(255,210,122,.28); } #cal .s2 { background:rgba(255,210,122,.55); } #cal .s3 { background:rgba(255,210,122,.95); }
+  #cal .late { background-image:repeating-linear-gradient(135deg, transparent 0 3px, rgba(10,14,34,.35) 3px 5px); }
   #cal .today { outline:1px solid rgba(255,210,122,.8); outline-offset:1px; }
   .primary { background:rgba(255,210,122,.18); border-color:rgba(255,210,122,.5); }
   #daily { position:relative; }
@@ -1662,8 +1663,8 @@ function openLevels() {
       const e = document.createElement(open ? "button" : "i");
       e.textContent = d.d; if (!open) e.setAttribute("aria-hidden", "true");
       if (i < 0) { e.className = "future"; e.setAttribute("aria-hidden", "true"); cal.append(e); continue; }
-      e.className = (r ? "s" + r.stars : "") + (i === 0 ? " today" : "");
-      const label = `${tx(`${d.d}.${d.m}.`, `${d.m}/${d.d}`)}: ${r ? starText(r.stars) : tx("offen", "open")}`;
+      e.className = (r ? "s" + r.stars : "") + (r?.late ? " late" : "") + (i === 0 ? " today" : "");
+      const label = `${tx(`${d.d}.${d.m}.`, `${d.m}/${d.d}`)}: ${r ? starText(r.stars) + (r.late ? tx(", nachgeholt", ", caught up") : "") : tx("offen", "open")}`;
       e.title = label;
       if (open) { e.setAttribute("aria-label", tx(`Tagesrätsel ${label}`, `Daily ${label}`)); e.onclick = () => { closeLevels(); loadDaily(i ? d : null); }; }
       cal.append(e);
