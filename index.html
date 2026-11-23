@@ -44,7 +44,7 @@
   .stars .on { color:var(--gold); text-shadow:0 0 16px rgba(255,200,110,.8); }
   .stars .off { color:rgba(255,255,255,.12); }
   .card p { color:var(--dim); margin:6px 0 18px; font-size:14px; }
-  .card .ctrl { justify-content:center; }
+  .card .ctrl { justify-content:center; flex-wrap:wrap; }
   .primary { background:rgba(255,210,122,.18); border-color:rgba(255,210,122,.5); }
   #daily { position:relative; }
   #daily.active { background:rgba(255,210,122,.22); border-color:rgba(255,210,122,.6); color:var(--gold); }
@@ -92,6 +92,7 @@
     <button id="prev" title="Vorheriges Level (P)">‹</button>
     <button id="undo" title="Rückgängig (Z)">↶</button>
     <button id="reset" title="Neu starten (R)">↺</button>
+    <button id="tip" title="Tipp: zeigt ein falsch gedrehtes Teil, kostet einen Zug (H)">?</button>
     <button id="next" title="Nächstes Level (N)">›</button>
     <button id="mute" title="Ton und Vibration an/aus (M)">♪</button>
   </div>
@@ -114,7 +115,7 @@
   <h2>Level</h2>
   <p id="levelsInfo"></p>
   <div id="levelGrid"></div>
-  <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="rand">Zufallslevel</button><button id="build">Selbst bauen</button><button id="closeLevels">Schließen</button></div>
+  <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="droneBtn" title="Leiser Klangteppich unter den Glocken">Klangteppich: an</button><button id="rand">Zufallslevel</button><button id="build">Selbst bauen</button><button id="closeLevels">Schließen</button></div>
 </div></div>
 <div id="win"><div class="card">
   <h2 id="winTitle">Licht gefunden</h2>
@@ -476,7 +477,7 @@ const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
 const note = (i, base = 523.25) => base * Math.pow(2, PENTA[i % PENTA.length] / 12);
 // Leiser Klangteppich: ein Grundton, und jeder leuchtende Kristall bringt eine Stimme dazu (C-Pentatonik wie die Glocken).
 const DRONE_ROOT = [130.81, 196.0], DRONE_VOICES = [261.63, 329.63, 392.0, 440.0, 587.33];
-let drone = null;
+let drone = null, droneOff = localStorage.getItem("lichtweg-drone") === "0";
 function droneVoice(f, a, bus, type = "triangle") {
   const g = a.createGain(); g.gain.value = 0;
   for (const cents of [-4, 4]) { const o = a.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = cents; o.connect(g); o.start(); }
@@ -488,7 +489,7 @@ function droneVoice(f, a, bus, type = "triangle") {
 }
 function droneTick(litShapes) {
   if (!ac) return;            // erst nach der ersten Berührung, sonst blockiert der Browser den Ton
-  const a = ac, quiet = muted || document.hidden;
+  const a = ac, quiet = muted || droneOff || document.hidden;
   if (!drone) {
     if (quiet) return;
     const bus = a.createGain(), lp = a.createBiquadFilter();
@@ -531,10 +532,19 @@ function dailySeed(t) {
 const DAILY_MIN_PAR = 4;
 const DAILY_GATES_FROM = "2026-11-24";             // Tagesrätsel #1 bleibt ohne Farbtore
 const DAILY_SUNDAY_FROM = "2026-11-29";           // ab dann: sonntags mit Strahlteiler und Prisma
+const DAILY_PORTAL_FROM = "2026-12-02";           // ab dann: mittwochs mit Portal
 const isSunday = t => dayKey(t) >= DAILY_SUNDAY_FROM && new Date(t.y, t.m - 1, t.d).getDay() === 0;
+const isPortalDay = t => dayKey(t) >= DAILY_PORTAL_FROM && new Date(t.y, t.m - 1, t.d).getDay() === 3;
+const hasPortal = lv => lv.grid.some(r => r.some(c => c.t === PORTAL));
 function dailyLevel(t) {
-  const sun = isSunday(t), opts = { gates: dayKey(t) >= DAILY_GATES_FROM, splitters: sun, portals: false, prisms: sun };
-  for (let k = 0; ; k++) { const lv = generate(DAILY_DIFFICULTY, dailySeed(t) + k * 104729, opts); if (lv.par >= DAILY_MIN_PAR || k > 50) return lv; }
+  const sun = isSunday(t), wed = isPortalDay(t), opts = { gates: dayKey(t) >= DAILY_GATES_FROM, splitters: sun, portals: wed, prisms: sun };
+  let fallback = null;
+  for (let k = 0; ; k++) {
+    const lv = generate(DAILY_DIFFICULTY, dailySeed(t) + k * 104729, opts);
+    if (lv.par >= DAILY_MIN_PAR && (!wed || hasPortal(lv))) return lv;
+    if (lv.par >= DAILY_MIN_PAR) fallback ||= lv;
+    if (k > 50) return fallback || lv;
+  }
 }
 const starsFor = (m, par) => m <= par ? 3 : m <= par + 2 ? 2 : 1;
 const starText = s => "★".repeat(s) + "☆".repeat(3 - s);
@@ -597,7 +607,9 @@ function decodeLevel(code, loose = false) {
 function startPlay(level, startMoves = 0) {
   $("tools").hidden = true; $("stats").style.visibility = "";
   L = level; T = trace(L); shown = 0; moves = startMoves; won = false; litPrev = new Set(); particles = [];
-  undoStack = []; cursor = null; updateUndo();
+  undoStack = []; cursor = null; updateUndo(); tipCell = null;
+  for (const c of L.grid.flat()) if (c.t === MIRROR || c.t === SPLIT) c.solO = c.flipped ? c.o ^ 1 : c.o;   // Lösung merken
+  $("tip").hidden = !!L.custom;   // geteilte Level kennen ihre Lösung nicht
   clearTimeout(winTimer); $("win").classList.remove("show");
   $("par").textContent = L.par; $("moves").textContent = moves;
   updateDailyBadge(); layout();
@@ -615,7 +627,8 @@ function loadDaily() {
   $("daily").classList.add("active");
   $("hint").textContent = done
     ? `Heute gelöst: ${done.moves} Züge ${starText(done.stars)}. Weitere Versuche zählen nicht.`
-    : (isSunday(t) ? "Sonntagsrätsel: heute mit Strahlteiler und Prisma. " : "Jeden Tag ein neues Rätsel, für alle gleich. ")
+    : (isSunday(t) ? "Sonntagsrätsel: heute mit Strahlteiler und Prisma. " : hasPortal(lv) ? "Portal-Mittwoch: Licht, das in ein Portal fällt, kommt am Partner wieder heraus. "
+      : "Jeden Tag ein neues Rätsel, für alle gleich. ")
       + "Es zählen alle Züge bis zur Lösung, auch über Neustarts hinweg.";
   $("hint").style.opacity = 1;
   layout();
@@ -667,6 +680,7 @@ const say = msg => { $("sr").textContent = ""; setTimeout(() => { $("sr").textCo
 // isUndo: Zug zurücknehmen. Das zählt minus eins, nur im Tagesrätsel als eigener Zug (fair bleibt fair).
 function flip(c, isUndo = false) {
   if (won || !rotatable(c)) return;
+  if (c === tipCell) tipUntil = 0;
   if (c.t === PRISM) c.r = (c.r + (isUndo ? 3 : 1)) % 4; else c.o ^= 1;
   if (isUndo) c.target -= Math.PI / 2; else { c.target += Math.PI / 2; undoStack.push(c); }
   moves += isUndo && mode !== "daily" ? -1 : 1;
@@ -678,6 +692,25 @@ function flip(c, isUndo = false) {
   tone(330 + Math.random() * 40, .12, .08, "triangle"); tone(990, .05, .03, "sine"); buzz(8);
   if (mode === "level" && L.n <= 2 && moves >= 1) $("hint").style.opacity = .55;
   if (mode === "daily" && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
+}
+
+// Tipp: zeigt das erste Teil, an dem das Licht vom Lösungsweg abkommt. Kostet einen Zug.
+let tipCell = null, tipUntil = 0;
+const wrongPiece = c => rotatable(c) && (c.t === PRISM ? c.r !== c.sol : c.solO !== undefined && c.o !== c.solO);
+function showTip() {
+  if (won || !L || L.custom || mode === "edit") return;
+  let pick = null;
+  for (const b of [...T.beams].sort((a, b) => a.start - b.start)) {
+    for (const p of b.pts) { const c = L.grid[Math.floor(p.y)]?.[Math.floor(p.x)]; if (wrongPiece(c)) { pick = c; break; } }
+    if (pick) break;
+  }
+  pick ||= L.grid.flat().find(wrongPiece);
+  if (!pick) return;
+  tipCell = pick; tipUntil = performance.now() + 2800;
+  moves++; $("moves").textContent = moves;
+  if (mode === "daily" && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
+  say(`Tipp: Das Teil in Spalte ${pick.x + 1}, Reihe ${pick.y + 1} steht falsch. Das kostet einen Zug.`);
+  tone(660, .2, .06); tone(880, .3, .05, "sine", .12);
 }
 
 function undo() { if (!won && undoStack.length) flip(undoStack.pop(), true); }
@@ -1125,6 +1158,12 @@ function frame(now) {
     roundRect(hover._x - cs * .47, hover._y - cs * .47, cs * .94, cs * .94, cs * .14); ctx.stroke(); ctx.restore();
   }
 
+  // Tipp-Markierung
+  if (tipCell && now < tipUntil && !won) {
+    ctx.save(); ctx.strokeStyle = `rgba(140,230,255,${.55 + .35 * Math.sin(t * 8)})`; ctx.lineWidth = Math.max(2, cs * .06);
+    ctx.beginPath(); ctx.arc(tipCell._x, tipCell._y, cs * (.45 + .05 * Math.sin(t * 6)), 0, 6.283); ctx.stroke(); ctx.restore();
+  }
+
   // Tastatur-Auswahlrahmen
   if (cursorOn && cursor && !won) {
     const cx = ox + (cursor.x + .5) * cs, cy = oy + (cursor.y + .5) * cs;
@@ -1228,6 +1267,7 @@ addEventListener("keydown", ev => {
   else if (k === "z" || k === "backspace") undo();
   else if (k === "t") toggleDaily();
   else if (k === "m") toggleMute();
+  else if (k === "h") showTip();
   else if (k === "l") openLevels();
   else if (k === "n") won ? proceed() : nextLevel();
   else if (k === "p") prevLevel();
@@ -1242,11 +1282,15 @@ $("levels").addEventListener("pointerdown", ev => { if (ev.target === $("levels"
 // Nach Mausklick den Fokus vom Button nehmen, damit Leertaste wieder den Spiegel dreht
 document.addEventListener("pointerup", ev => { const b = ev.target.closest("button"); if (b) b.blur(); });
 $("reset").onclick = restart;
+$("tip").onclick = showTip;
 $("again").onclick = restart;
 $("go").onclick = proceed;
 $("share").onclick = shareDaily;
 $("build").onclick = () => openEditor();
 $("rand").onclick = () => { closeLevels(); seedLevel(); };
+const droneLabel = () => { $("droneBtn").textContent = `Klangteppich: ${droneOff ? "aus" : "an"}`; $("droneBtn").setAttribute("aria-pressed", String(!droneOff)); };
+$("droneBtn").onclick = () => { droneOff = !droneOff; localStorage.setItem("lichtweg-drone", droneOff ? "0" : "1"); droneLabel(); if (!droneOff) audio(); droneTick(new Set()); };
+droneLabel();
 $("esize").onchange = () => resizeEditor(+$("esize").value);
 $("eclear").onclick = () => { const size = L.size; L = EDIT_DEFAULT(); if (size !== 7) resizeEditor(size); else { T = trace(L); shown = 0; layout(); saveDraft(); editStatus(); } };
 $("etest").onclick = () => { const code = scrambleForShare(); if (code) loadCustom(code, true); };

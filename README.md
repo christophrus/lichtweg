@@ -4,7 +4,7 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 
 **Spielen:** https://christophrus.github.io/lichtweg/ · **Tagesrätsel:** https://christophrus.github.io/lichtweg/#heute
 
-- **Steuerung:** Klick/Tippen dreht einen Spiegel · `Z` / ↶ Rückgängig · `R` Neustart · `T` Tagesrätsel · `M` Ton.
+- **Steuerung:** Klick/Tippen dreht einen Spiegel · `Z` / ↶ Rückgängig · `R` Neustart · `T` Tagesrätsel · `M` Ton · `H` / ? Tipp.
   Ein Klick auf den Titel oder `L` öffnet die Levelübersicht. `N`/`P` wechseln zum nächsten oder vorherigen Level.
 - **Nur mit Tastatur:** Pfeiltasten springen von Spiegel zu Spiegel, die Leertaste dreht ihn.
 - **Ohne Farben unterscheidbar:** Jeder Kristall hat seine eigene Form (Raute, Dreieck, Sechseck, Stern, Kreis).
@@ -13,7 +13,9 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   „Ziel“ ist die Zahl der verdrehten Spiegel.
 - **Tagesrätsel (☀):** jeden Tag ein Rätsel, für alle gleich, aus dem Datum erzeugt. Gewertet wird der erste
   Lösungsweg des Tages, alle Züge zählen, auch über Neustarts hinweg. Gelöste Tage nacheinander ergeben eine Serie,
-  das Ergebnis lässt sich als Text teilen. Ab dem 29.11.2026 ist sonntags ein Sonntagsrätsel mit Strahlteiler und Prisma.
+  das Ergebnis lässt sich als Text teilen. Ab dem 29.11.2026 ist sonntags ein Sonntagsrätsel mit Strahlteiler und Prisma,
+  ab dem 2.12.2026 mittwochs ein Portal-Mittwoch.
+- **Tipp** (?): markiert das erste Teil, an dem das Licht vom Lösungsweg abkommt. Jeder Tipp kostet einen Zug.
 - Kristalle färben das Licht, das sie durchquert. Bronze-Spiegel mit Nieten sind fest.
 - **Farbtore** (ab Level 10): Sie lassen nur Licht in ihrer Farbe durch, goldene Tore nur ungefärbtes. Das Symbol im
   Tor zeigt den passenden Kristall. Tore werden erst nach dem fertigen Level gesetzt, und zwar in genau der Farbe, die
@@ -33,7 +35,7 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   an, der wieder zum Lösungsweg zurückführt.
 - **Als App:** Lichtweg lässt sich auf dem Handy auf den Homescreen legen („Zum Startbildschirm“ bzw. „Als App
   installieren“ in der Levelübersicht) und läuft danach auch offline. Auf dem Handy vibriert es leicht, der ♪-Schalter
-  schaltet Ton und Vibration zusammen.
+  schaltet Ton und Vibration zusammen. Den Klangteppich allein schaltet man in der Levelübersicht aus.
 - **Atmosphäre:** Unter den Glocken liegt ein leiser Klangteppich. Jeder leuchtende Kristall bringt eine eigene Stimme
   dazu. Der Himmel folgt der Uhrzeit: Nacht, Morgenrot, Tag und Abendrot.
 - Fortschritt, Sterne und Serie liegen im `localStorage` des Browsers. Die Levelübersicht zeigt eine kleine Statistik
