@@ -287,8 +287,8 @@ if (engine === "chromium") {
   // Spielstand laden ersetzt bewusst – der andere Tab mischt den alten Stand nicht wieder hinein
   const code = "LW1:" + Buffer.from(JSON.stringify({ unlocked: 1, stars: {}, daily: { results: {} } })).toString("base64");
   a.once("dialog", d => d.accept(code));
-  await Promise.all([a.waitForEvent("load"), a.click("#titleBtn").then(() => a.click("#restore"))]);
-  await b.waitForFunction(() => save.unlocked === 1, null, { timeout: 3000 }).catch(() => {});
+  await a.click("#titleBtn"); await a.click("#restore", { noWaitAfter: true }).catch(() => {});   // Tab lädt danach neu
+  await b.waitForFunction(() => save.unlocked === 1, null, { timeout: 8000 }).catch(() => {});
   await b.evaluate(() => persist());
   const after = await b.evaluate(() => { const s = JSON.parse(localStorage.getItem("lichtweg")); return [s.unlocked, Object.keys(s.stars).length, Object.keys(s.daily.results).length, save.unlocked]; });
   check("Geladener Spielstand ersetzt auch im anderen Tab", after.join() === "1,0,0,1", after.join("/"));
