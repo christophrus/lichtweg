@@ -384,6 +384,37 @@ function tone(freq, dur, vol = .15, type = "sine", delay = 0) {
 const buzz = pattern => { if (!muted && navigator.vibrate && navigator.userActivation?.hasBeenActive !== false) try { navigator.vibrate(pattern); } catch {} };
 const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
 const note = (i, base = 523.25) => base * Math.pow(2, PENTA[i % PENTA.length] / 12);
+// Leiser Klangteppich: ein Grundton, und jeder leuchtende Kristall bringt eine Stimme dazu (C-Pentatonik wie die Glocken).
+const DRONE_ROOT = [130.81, 196.0], DRONE_VOICES = [261.63, 329.63, 392.0, 440.0, 587.33];
+let drone = null;
+function droneVoice(f, a, bus, type = "triangle") {
+  const g = a.createGain(); g.gain.value = 0;
+  for (const cents of [-4, 4]) { const o = a.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = cents; o.connect(g); o.start(); }
+  // langsames Atmen, jede Stimme mit eigenem Tempo
+  const lfo = a.createOscillator(), depth = a.createGain(), breath = a.createGain();
+  lfo.frequency.value = .05 + Math.random() * .08; depth.gain.value = .35; breath.gain.value = 1;
+  g.connect(breath); breath.connect(bus); lfo.connect(depth); depth.connect(breath.gain); lfo.start();
+  return { g, on: false };
+}
+function droneTick(litShapes) {
+  if (!ac) return;            // erst nach der ersten Berührung, sonst blockiert der Browser den Ton
+  const a = ac, quiet = muted || document.hidden;
+  if (!drone) {
+    if (quiet) return;
+    const bus = a.createGain(), lp = a.createBiquadFilter();
+    lp.type = "lowpass"; lp.frequency.value = 900; lp.Q.value = .3;
+    bus.gain.value = 0; bus.connect(lp); lp.connect(master);
+    drone = { bus, root: DRONE_ROOT.map(f => droneVoice(f, a, bus, "sine")), voices: DRONE_VOICES.map(f => droneVoice(f, a, bus)), busOn: null };
+    drone.root.forEach(v => v.g.gain.value = .5);
+  }
+  const want = !quiet;
+  if (want !== drone.busOn) { drone.busOn = want; drone.bus.gain.setTargetAtTime(want ? .09 : 0, a.currentTime, want ? 1.2 : .25); }
+  drone.voices.forEach((v, i) => {
+    const on = litShapes.has(i);
+    if (on !== v.on) { v.on = on; v.g.gain.setTargetAtTime(on ? .32 : 0, a.currentTime, on ? .8 : 1.6); }
+  });
+}
+addEventListener("visibilitychange", () => droneTick(new Set()));
 function bell(f, delay = 0, vol = .12) { tone(f, 1.6, vol, "sine", delay); tone(f * 2.01, .9, vol * .35, "sine", delay); tone(f * 3.98, .4, vol * .12, "sine", delay); }
 
 // ---------- Zustand ----------
@@ -713,7 +744,7 @@ function layout() {
   const top = Math.ceil($("hud").getBoundingClientRect().bottom) + 6,
     bottom = !$("tools").hidden ? $("tools").getBoundingClientRect().height + 8
       : Math.max(60, ($("hint").textContent ? $("hint").getBoundingClientRect().height : 0) + 34), avail = Math.min(W - 32, H - top - bottom);
-  cs = Math.floor(avail / (L.size + .6));
+  cs = Math.max(8, Math.floor(avail / (L.size + .6)));   // nie negativ, auch in winzigen Fenstern
   ox = Math.round((W - cs * L.size) / 2); oy = Math.round(top + (H - top - bottom - cs * L.size) / 2);
   for (let y = 0; y < L.size; y++) for (let x = 0; x < L.size; x++) { const c = L.grid[y][x]; c._x = ox + (x + .5) * cs; c._y = oy + (y + .5) * cs; }
 }
@@ -766,21 +797,50 @@ function pointAt(beam, d0) {
 }
 
 let last = performance.now();
+// Himmelsfarben über den Tag: [Stunde, Mitte, Rand, Horizontschein rgba, Sternhelligkeit]
+const SKY = [
+  [0, [20, 26, 54], [5, 7, 15], [40, 50, 110, 0], 1],
+  [4.5, [20, 26, 54], [5, 7, 15], [40, 50, 110, 0], 1],
+  [6.5, [42, 34, 70], [11, 10, 26], [255, 140, 110, .2], .6],
+  [9, [28, 42, 84], [10, 17, 36], [130, 175, 255, .12], .3],
+  [16, [28, 42, 84], [10, 17, 36], [130, 175, 255, .12], .3],
+  [18.5, [44, 30, 62], [12, 8, 22], [255, 120, 70, .22], .55],
+  [21, [20, 26, 54], [5, 7, 15], [40, 50, 110, 0], 1],
+  [24, [20, 26, 54], [5, 7, 15], [40, 50, 110, 0], 1]];
+let skyCache = null, skyHour = null;   // skyHour: zum Ausprobieren fest setzen, sonst die echte Uhrzeit
+function skyAt(h) {
+  let i = 0; while (SKY[i + 1][0] <= h && i < SKY.length - 2) i++;
+  const [h0, ...a] = SKY[i], [h1, ...b] = SKY[i + 1], k = (h - h0) / (h1 - h0), m = (x, y) => x + (y - x) * k;
+  const rgb = (x, y) => `rgb(${x.map((v, j) => Math.round(m(v, y[j]))).join(",")})`;
+  return { center: rgb(a[0], b[0]), edge: rgb(a[1], b[1]), glow: a[2].map((v, j) => j < 3 ? Math.round(m(v, b[2][j])) : +m(v, b[2][j]).toFixed(3)), stars: m(a[3], b[3]) };
+}
+function sky() {
+  const d = new Date(), h = skyHour ?? d.getHours() + d.getMinutes() / 60, key = Math.floor(h * 60);
+  if (!skyCache || skyCache.key !== key) skyCache = Object.assign(skyAt(h), { key });
+  return skyCache;
+}
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now; const t = now / 1000;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
-  // Himmel
+  // Himmel, je nach Tageszeit
+  const sk = sky();
   const g = ctx.createRadialGradient(W / 2, H * .45, 0, W / 2, H * .45, Math.max(W, H) * .8);
-  g.addColorStop(0, "#141a36"); g.addColorStop(1, "#05070f");
+  g.addColorStop(0, sk.center); g.addColorStop(1, sk.edge);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  for (const s of stars) { ctx.globalAlpha = .25 + .35 * Math.sin(t * s.s + s.p) ** 2; ctx.fillStyle = "#cfd8ff"; ctx.beginPath(); ctx.arc(s.x * W, s.y * H, s.r, 0, 6.283); ctx.fill(); }
+  if (sk.glow[3] > .005) {
+    const hg = ctx.createLinearGradient(0, H, 0, H * .35);
+    hg.addColorStop(0, `rgba(${sk.glow.slice(0, 3).join(",")},${sk.glow[3]})`); hg.addColorStop(1, `rgba(${sk.glow.slice(0, 3).join(",")},0)`);
+    ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
+  }
+  for (const s of stars) { ctx.globalAlpha = (.25 + .35 * Math.sin(t * s.s + s.p) ** 2) * sk.stars; ctx.fillStyle = "#cfd8ff"; ctx.beginPath(); ctx.arc(s.x * W, s.y * H, s.r, 0, 6.283); ctx.fill(); }
   ctx.globalAlpha = 1;
   if (!L) return requestAnimationFrame(frame);
 
   // Strahl fortschreiten lassen
   shown = Math.min(T.dist, shown + dt * 13);
   const lit = new Set(); for (const e of T.events) if (e.dist <= shown) lit.add(e.cell);
+  droneTick(new Set([...lit].filter(c => c.t === CRYSTAL).map(c => c.shape)));
   for (const c of lit) if (!litPrev.has(c) && c.t === CRYSTAL) { bell(note(L.crystals.indexOf(c) + 2), 0, .09); burst(c._x, c._y, c.hue, 26); buzz(14);
     say(`Kristall leuchtet: ${L.crystals.filter(k => lit.has(k)).length} von ${L.crystals.length}`); }
   litPrev = lit;
@@ -994,7 +1054,7 @@ addEventListener("keydown", ev => {
   else if (k === "n") won ? proceed() : nextLevel();
   else if (k === "p") prevLevel();
 });
-function toggleMute() { muted = !muted; localStorage.setItem("lichtweg-muted", muted ? "1" : "0"); $("mute").style.opacity = muted ? .4 : 1; }
+function toggleMute() { muted = !muted; localStorage.setItem("lichtweg-muted", muted ? "1" : "0"); $("mute").style.opacity = muted ? .4 : 1; if (!muted) audio(); droneTick(new Set()); }
 $("prev").onclick = prevLevel;
 $("next").onclick = nextLevel;
 $("undo").onclick = undo;

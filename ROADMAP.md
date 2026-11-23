@@ -18,6 +18,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   Ein Teiler sitzt auf einem freien Feld oder ersetzt einen Spiegel des Lösungswegs. Alles Bisherige bleibt.
 - **v7 – Level-Editor:** eigene Level bauen (`#bauen`), sofort testen und als Link teilen. Das Level steckt
   komprimiert in der URL (`#l=…`), ein Server ist nicht nötig. Vor dem Teilen werden die Spiegel verdreht.
+- **v8 – Atmosphäre:** ein leiser Klangteppich, in dem jeder leuchtende Kristall eine eigene Stimme bekommt, und ein
+  Himmel, der der Uhrzeit folgt (Nacht, Morgenrot, Tag, Abendrot).
 
 ## Als Nächstes
 
@@ -28,10 +30,6 @@ Jede Mechanik wird im Generator rückwärts gebaut und ist damit automatisch lö
 
 ### 2. Selbst bauen und teilen
 - **Seed-Links:** `#seed=1234` für „versuch mal dieses hier“.
-
-### 3. Klang und Atmosphäre
-- Leiser, generativer Hintergrund-Drone, der mit jedem leuchtenden Kristall eine Stimme dazubekommt.
-- Tageszeit-Himmel: Das Tagesrätsel hat morgens, mittags und nachts einen anderen Himmel.
 
 ## Bewusst nicht geplant
 - Konten, Bestenlisten mit Server, Werbung, Tracking.

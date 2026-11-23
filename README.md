@@ -27,6 +27,8 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 - **Als App:** Lichtweg lässt sich auf dem Handy auf den Homescreen legen („Zum Startbildschirm“ bzw. „Als App
   installieren“ in der Levelübersicht) und läuft danach auch offline. Auf dem Handy vibriert es leicht, der ♪-Schalter
   schaltet Ton und Vibration zusammen.
+- **Atmosphäre:** Unter den Glocken liegt ein leiser Klangteppich. Jeder leuchtende Kristall bringt eine eigene Stimme
+  dazu. Der Himmel folgt der Uhrzeit: Nacht, Morgenrot, Tag und Abendrot.
 - Fortschritt, Sterne und Serie liegen im `localStorage` des Browsers.
 - Lokal: `index.html` öffnen oder `python -m http.server 8765` starten.
 
