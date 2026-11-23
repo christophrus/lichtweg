@@ -23,12 +23,15 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v9 – Portale** (ab Level 35, wo Platz ist): Das Licht springt vom einen Portal zum anderen und kommt über einen
   Umweg mit neuen Spiegeln zum Lösungsweg zurück. Lösungsweg und Level vor 35 bleiben unverändert. Auch im Editor.
 - **v10 – Zufallslevel:** neue Level in deiner Stufe aus einem zufälligen Startwert, teilbar als `#z=Stufe-Startwert`.
+- **v11 – Prismen** (ab Level 45): einseitige Spiegel mit vier Stellungen. Nur die helle Seite spiegelt, die Rückseite
+  schluckt das Licht. Ein Prisma kann bis zu drei Tipper brauchen. Lösungsweg und Level vor 45 bleiben unverändert.
 
 ## Als Nächstes
 
-### 1. Neue Mechaniken (das Herzstück)
-Jede Mechanik wird im Generator rückwärts gebaut und ist damit automatisch lösbar. Sie wird mit einem kurzen Hinweis-Level eingeführt.
-- **Drehprismen mit vier Stellungen** statt zwei, für spätere Level.
+Neue Mechaniken werden im Generator rückwärts gebaut und sind damit automatisch lösbar. Sie kommen mit einem
+kurzen Hinweis-Level. Ideen, die noch reifen:
+- Eine kleine Statistikseite (gelöste Level, Sterne, längste Serie), ganz ohne Server.
+- Tagesrätsel mit den neueren Mechaniken, sobald sie sich bewährt haben.
 
 ## Bewusst nicht geplant
 - Konten, Bestenlisten mit Server, Werbung, Tracking.
