@@ -190,7 +190,10 @@ if (engine === "chromium") {
   check("Zurück zu heute mit gespeicherten Zügen", await p.evaluate(() => moves === 3));
   await p.evaluate(() => { location.hash = "#tag=2026-12-07"; });
   await p.waitForTimeout(200);
-  check("Zukunft lässt sich nicht öffnen", await p.evaluate(() => L.day === "2026-12-05" && !L.archive));
+  check("Zukunft lässt sich nicht öffnen, mit Erklärung", await p.evaluate(() => L.day === "2026-12-05" && !L.archive && /Mitternacht/.test($("hint").textContent)));
+  await p.evaluate(() => { location.hash = "#tag=2026-11-01"; });
+  await p.waitForFunction(() => /noch kein/.test($("hint").textContent), null, { timeout: 3000 }).catch(() => {});
+  check("Tag vor #1 meldet sich", await p.evaluate(() => /noch kein/.test($("hint").textContent) && L.day === "2026-12-05"));
   await p.evaluate(() => loadLevel(1)); await p.evaluate(() => { location.hash = "#tag=2026-12-05"; });
   await p.waitForFunction(() => mode === "daily");
   check("Link auf heute öffnet das heutige Rätsel", await p.evaluate(() => L.day === "2026-12-05" && !L.archive && moves === 3));

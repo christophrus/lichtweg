@@ -696,6 +696,18 @@ function parseDayHash(h) {
   const ok = dayKey(shiftDay(t, 0)) === dayKey(t) && (isPastDay(t) || dayKey(t) === dayKey(dayOf(new Date())));
   return ok ? t : null;   // echtes Datum von #1 bis heute, nicht in der Zukunft
 }
+// #tag=… ohne passendes Rätsel: Statt still etwas anderes zu laden, das heutige zeigen und sagen, warum
+function dayLinkMiss(h) {
+  const m = /^#tag=(\d{4})-(\d{2})-(\d{2})/.exec(h), t = m && { y: +m[1], m: +m[2], d: +m[3] };
+  const real = t && dayKey(shiftDay(t, 0)) === dayKey(t);
+  loadDaily();
+  const msg = real && dayKey(t) > dayKey(dayOf(new Date()))
+    ? tx(`Das Tagesrätsel vom ${t.d}.${t.m}. gibt es hier erst ab Mitternacht, deine Uhr ist noch nicht so weit. Bis dahin: das heutige.`,
+         `The daily for ${t.m}/${t.d} only arrives here at midnight, your clock isn't there yet. Until then: today's.`)
+    : real ? tx(`Am ${t.d}.${t.m}.${t.y} gab es noch kein Tagesrätsel. Hier ist das heutige.`, `There was no daily on ${t.m}/${t.d}/${t.y} yet. Here is today's.`)
+    : tx("Dieser Tages-Link ist leider kaputt. Hier ist das heutige Rätsel.", "Sorry, this day link is broken. Here is today's puzzle.");
+  $("hint").textContent = msg; $("hint").style.opacity = 1; layout(); say(msg);
+}
 function loadDaily(past) {
   if (past && !isPastDay(past)) past = null;
   mode = "daily";
@@ -1699,6 +1711,7 @@ addEventListener("hashchange", () => {
   const h = location.hash;
   if (h === "#heute" && (mode !== "daily" || L.archive)) loadDaily();
   else if (parseDayHash(h) && (mode !== "daily" || L.day !== h.slice(5))) loadDaily(parseDayHash(h));
+  else if (h.startsWith("#tag=") && !parseDayHash(h)) dayLinkMiss(h);
   else if (h === "#bauen" && mode !== "edit") openEditor();
   else if (h.startsWith("#l=") && (mode !== "custom" || h.slice(3) !== customCode)) loadCustom(h.slice(3));
   else if (parseSeed(h) && (mode !== "seed" || h !== seedHash(L.n, L.seed))) loadSeed(...parseSeed(h));
@@ -1763,6 +1776,7 @@ if (location.hash.startsWith("#l=")) loadCustom(location.hash.slice(3));
 else if (parseSeed(location.hash)) loadSeed(...parseSeed(location.hash));
 else if (location.hash.startsWith("#z=")) brokenLink(true);
 else if (parseDayHash(location.hash)) loadDaily(parseDayHash(location.hash));
+else if (location.hash.startsWith("#tag=")) dayLinkMiss(location.hash);
 else if (location.hash === "#bauen") openEditor();
 else if (location.hash === "#heute" || (save.mode === "daily" && !location.hash)) loadDaily(); else loadLevel(save.current || 1);
 requestAnimationFrame(frame);

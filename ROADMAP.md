@@ -77,6 +77,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v27.3 – Geteilte Tagesrätsel zeigen auf ihren Tag:** „Teilen“ verlinkte immer `#heute` – wer den Link am
   nächsten Tag (oder bei einem nachgeholten Rätsel) öffnete, bekam ein anderes Rätsel. Jetzt `#tag=JJJJ-MM-TT`;
   nachgeholte Ergebnisse nennen keine Serie mehr.
+- **v27.4 – Tages-Links erklären sich:** Ein `#tag=`-Link auf einen Tag, der hier noch nicht begonnen hat (Freundin
+  in einer früheren Zeitzone), vor #1 liegt oder kaputt ist, lädt das heutige Rätsel und sagt, warum.
 
 ## Als Nächstes
 
