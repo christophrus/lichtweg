@@ -73,7 +73,26 @@ for (const n of [3, 22, 45, 120]) for (let i = 0; i < 60; i++) {
 }
 check("Zufallslevel lösbar", !sbad, sbad + " Fehler");
 
-// 7. Seitengerüst: jede ID nur einmal, jeder Verweis aus dem Code und aus aria-* zeigt auf etwas
+// 7. Kaputter oder gesperrter Speicher hält das Spiel nicht an
+const startWith = (raw, broken = false) => {
+  const kept = {};
+  const localStorage = { getItem: k => { if (broken) throw new Error("gesperrt"); return k === "lichtweg" ? raw : null; },
+    setItem: (k, v) => { if (broken) throw new Error("voll"); kept[k] = v; } };
+  const save = new Function("localStorage", cut('"use strict";', "const tx") + cut("// ---------- Zustand", "let mode =") + "\nreturn save;")(localStorage);
+  return { save, kept };
+};
+let sv = 0;
+for (const raw of ["{kaputt", "null", "[1]", "7", '{"unlocked":"x","stars":null,"daily":5}']) {
+  try { const { save } = startWith(raw); if (save.unlocked !== 1 || typeof save.stars !== "object" || typeof save.daily.results !== "object") sv++; } catch { sv++; }
+}
+try { startWith("{}", true); } catch { sv++; }
+check("Kaputter oder gesperrter Speicher wird geglättet", !sv, sv + " Fehler");
+let keptOk = false; try { keptOk = startWith("{kaputt").kept["lichtweg-kaputt"] === "{kaputt"; } catch {}
+check("Unlesbarer Spielstand wird aufgehoben", keptOk);
+const good = startWith(JSON.stringify({ unlocked: 9, current: 4, stars: { 3: 2 }, daily: { results: { "2026-11-20": { moves: 5, par: 5, stars: 3 } }, streak: 2 } })).save;
+check("Gültiger Spielstand bleibt erhalten", good.unlocked === 9 && good.current === 4 && good.stars[3] === 2 && good.daily.streak === 2 && good.daily.results["2026-11-20"].stars === 3);
+
+// 8. Seitengerüst: jede ID nur einmal, jeder Verweis aus dem Code und aus aria-* zeigt auf etwas
 const markup = html.slice(0, html.indexOf("<script>")), script = html.slice(html.indexOf("<script>"));
 const ids = [...markup.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
 const made = [...script.matchAll(/\bid\s*=\s*"([^"]+)"/g)].map(m => m[1]);   // im Code erzeugte Elemente

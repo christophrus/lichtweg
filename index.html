@@ -157,7 +157,12 @@
 <script>
 "use strict";
 // ---------- Sprache: Deutsch oder Englisch (nach Browser, umschaltbar in der Levelübersicht) ----------
-const EN = (globalThis.localStorage?.getItem?.("lichtweg-lang") || (globalThis.navigator?.language || "de").slice(0, 2)) !== "de";
+// Speicher, der nie wirft: gesperrter (privater Modus), voller oder fehlender Speicher darf das Spiel nicht anhalten
+const store = {
+  get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+};
+const EN = (store.get("lichtweg-lang") || (globalThis.navigator?.language || "de").slice(0, 2)) !== "de";
 const tx = (de, en) => EN ? en : de;
 const mv = n => n === 1 ? tx("Zug", "move") : tx("Züge", "moves");
 const days = n => n === 1 ? tx("Tag", "day") : tx("Tage", "days");
@@ -487,7 +492,7 @@ function divergence(A, B) {
 }
 
 // ---------- Ton ----------
-let ac = null, master = null, muted = localStorage.getItem("lichtweg-muted") === "1";
+let ac = null, master = null, muted = store.get("lichtweg-muted") === "1";
 function audio() {
   if (!ac) {
     ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -515,7 +520,7 @@ const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
 const note = (i, base = 523.25) => base * Math.pow(2, PENTA[i % PENTA.length] / 12);
 // Leiser Klangteppich: ein Grundton, und jeder leuchtende Kristall bringt eine Stimme dazu (C-Pentatonik wie die Glocken).
 const DRONE_ROOT = [130.81, 196.0], DRONE_VOICES = [261.63, 329.63, 392.0, 440.0, 587.33];
-let drone = null, droneOff = localStorage.getItem("lichtweg-drone") === "0";
+let drone = null, droneOff = store.get("lichtweg-drone") === "0";
 function droneVoice(f, a, bus, type = "triangle") {
   const g = a.createGain(); g.gain.value = 0;
   for (const cents of [-4, 4]) { const o = a.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = cents; o.connect(g); o.start(); }
@@ -547,9 +552,27 @@ addEventListener("visibilitychange", () => droneTick(new Set()));
 function bell(f, delay = 0, vol = .12) { tone(f, 1.6, vol, "sine", delay); tone(f * 2.01, .9, vol * .35, "sine", delay); tone(f * 3.98, .4, vol * .12, "sine", delay); }
 
 // ---------- Zustand ----------
-const save = Object.assign({ unlocked: 1, stars: {}, current: 1 }, JSON.parse(localStorage.getItem("lichtweg") || "{}"));
-save.daily = Object.assign({ results: {}, streak: 0, last: null, progress: null }, save.daily);
-const persist = () => localStorage.setItem("lichtweg", JSON.stringify(save));
+// Spielstand lesen und glätten: Ein kaputter Eintrag darf das Spiel nicht am Start hindern.
+// Unlesbares wird unter "lichtweg-kaputt" aufgehoben statt beim nächsten Speichern still überschrieben.
+const isObj = o => !!o && typeof o === "object" && !Array.isArray(o);
+function cleanSave(o) {
+  o = Object.assign({ unlocked: 1, stars: {}, current: 1 }, isObj(o) ? o : {});
+  if (!Number.isInteger(o.unlocked) || o.unlocked < 1) o.unlocked = 1;
+  if (!Number.isInteger(o.current) || o.current < 1 || o.current > o.unlocked) o.current = o.unlocked;
+  if (!isObj(o.stars)) o.stars = {};
+  o.daily = Object.assign({ results: {}, streak: 0, last: null, progress: null }, isObj(o.daily) ? o.daily : {});
+  if (!isObj(o.daily.results)) o.daily.results = {};
+  for (const [k, r] of Object.entries(o.daily.results)) if (!isObj(r) || typeof r.moves !== "number" || typeof r.stars !== "number") delete o.daily.results[k];
+  if (!Number.isInteger(o.daily.streak) || o.daily.streak < 0) o.daily.streak = 0;
+  if (!isObj(o.daily.progress)) o.daily.progress = null;
+  return o;
+}
+const save = (() => {
+  const raw = store.get("lichtweg");
+  try { return cleanSave(JSON.parse(raw || "{}")); }
+  catch { store.set("lichtweg-kaputt", raw); return cleanSave({}); }
+})();
+const persist = () => store.set("lichtweg", JSON.stringify(save));
 let mode = "level", L, T, shown = 0, moves = 0, won = false, litPrev = new Set(), hover = null, particles = [], winTimer = 0;
 let undoStack = [], cursor = null, cursorOn = false;
 const $ = id => document.getElementById(id);
@@ -890,7 +913,7 @@ const EDIT_DEFAULT = (() => {   // 7×7: Quelle links, Linse rechts, dazwischen 
   return () => buildLevel(size, g.map(r => r.map(c => makeCell(c.t, cellParam(c), c.x, c.y))), 0, true);
 })();
 const editMsg = (m, warn = false) => { $("toolmsg").textContent = m; $("toolmsg").style.color = warn ? "#ffb38a" : ""; };
-function saveDraft() { localStorage.setItem("lichtweg-editor", encodeLevel(L)); }
+function saveDraft() { store.set("lichtweg-editor", encodeLevel(L)); }
 const portalTrouble = lv => { const cnt = [0, 0, 0, 0]; for (const c of lv.grid.flat()) if (c.t === PORTAL) cnt[c.id]++;
   const k = cnt.findIndex(v => v && v !== 2); return k < 0 ? null : tx(`Portalpaar ${k + 1} hat ${cnt[k] === 1 ? "erst ein Portal" : cnt[k] + " Portale"}. Es braucht genau zwei.`,
     `Portal pair ${k + 1} has ${cnt[k] === 1 ? "only one portal" : cnt[k] + " portals"}. It needs exactly two.`); };
@@ -903,7 +926,7 @@ function editStatus() {
 }
 function openEditor(level) {
   mode = "edit"; won = false; clearTimeout(winTimer); $("win").classList.remove("show"); closeLevels();
-  L = level || decodeLevel(localStorage.getItem("lichtweg-editor") || "", true) || EDIT_DEFAULT();
+  L = level || decodeLevel(store.get("lichtweg-editor") || "", true) || EDIT_DEFAULT();
   T = trace(L); shown = 0; particles = []; litPrev = new Set(); undoStack = []; editHistory = []; updateUndo(); cursorOn = false;
   setHash("#bauen");
   $("lvl").textContent = tx("Level-Editor", "Level editor"); $("stats").style.visibility = "hidden";
@@ -1575,7 +1598,7 @@ addEventListener("keydown", ev => {
   else if (k === "n") won ? proceed() : nextLevel();
   else if (k === "p") prevLevel();
 });
-function toggleMute() { muted = !muted; localStorage.setItem("lichtweg-muted", muted ? "1" : "0"); $("mute").style.opacity = muted ? .4 : 1; if (!muted) audio(); droneTick(new Set()); }
+function toggleMute() { muted = !muted; store.set("lichtweg-muted", muted ? "1" : "0"); $("mute").style.opacity = muted ? .4 : 1; if (!muted) audio(); droneTick(new Set()); }
 $("prev").onclick = prevLevel;
 $("next").onclick = nextLevel;
 $("undo").onclick = undo;
@@ -1597,13 +1620,13 @@ $("share").onclick = shareDaily;
 $("build").onclick = () => openEditor();
 $("rand").onclick = () => { closeLevels(); seedLevel(); };
 const droneLabel = () => { $("droneBtn").textContent = tx(`Klangteppich: ${droneOff ? "aus" : "an"}`, `Drone: ${droneOff ? "off" : "on"}`); $("droneBtn").setAttribute("aria-pressed", String(!droneOff)); };
-$("droneBtn").onclick = () => { droneOff = !droneOff; localStorage.setItem("lichtweg-drone", droneOff ? "0" : "1"); droneLabel(); if (!droneOff) audio(); droneTick(new Set()); };
+$("droneBtn").onclick = () => { droneOff = !droneOff; store.set("lichtweg-drone", droneOff ? "0" : "1"); droneLabel(); if (!droneOff) audio(); droneTick(new Set()); };
 droneLabel();
 $("esize").onchange = () => resizeEditor(+$("esize").value);
 $("eclear").onclick = () => { editSnapshot(); updateUndo(); const size = L.size; L = EDIT_DEFAULT(); if (size !== 7) resizeEditor(size); else { T = trace(L); shown = 0; layout(); saveDraft(); editStatus(); } };
 $("etest").onclick = () => { const code = scrambleForShare(); if (code) loadCustom(withTitle(code), true); };
-$("etitle").value = localStorage.getItem("lichtweg-editor-title") || "";
-$("etitle").oninput = () => localStorage.setItem("lichtweg-editor-title", $("etitle").value);
+$("etitle").value = store.get("lichtweg-editor-title") || "";
+$("etitle").oninput = () => store.set("lichtweg-editor-title", $("etitle").value);
 $("eshare").onclick = async () => { let code = scrambleForShare(); if (!code) return; code = withTitle(code);
   const ok = await shareText(tx(`Lichtweg · Ein Level für dich\n`, `Lichtweg · a level for you\n`) + levelLink(code), null);
   editMsg(ok === false ? tx("Kopieren hat nicht geklappt. Link: ", "Copying failed. Link: ") + levelLink(code) : tx("Link kopiert – jedes Teilen verdreht die Spiegel neu.", "Link copied – every share scrambles the mirrors anew.")); };
@@ -1648,11 +1671,11 @@ $("restore").onclick = () => {
   if (!code) return;
   try {
     const o = JSON.parse(decodeURIComponent(escape(atob(code.trim().replace(/^LW1:/, "")))));
-    if (typeof o.unlocked !== "number" || typeof o.stars !== "object") throw 0;
-    localStorage.setItem("lichtweg", JSON.stringify(o)); location.reload();
+    if (!isObj(o) || typeof o.unlocked !== "number" || !isObj(o.stars)) throw 0;
+    store.set("lichtweg", JSON.stringify(cleanSave(o))); location.reload();
   } catch { alert(tx("Dieser Code passt leider nicht.", "Sorry, that code doesn't work.")); }
 };
-$("langBtn").onclick = () => { localStorage.setItem("lichtweg-lang", EN ? "de" : "en"); location.reload(); };
+$("langBtn").onclick = () => { store.set("lichtweg-lang", EN ? "de" : "en"); location.reload(); };
 
 // Offline-Fähigkeit und "Als App installieren"
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
