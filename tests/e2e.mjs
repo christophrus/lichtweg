@@ -225,7 +225,11 @@ if (engine === "chromium") {
   check("Nachgeholt steht im Kalender", d.results["2026-11-30"]?.late === true);
   const shared = await p.evaluate(() => dailyShareText());
   check("Geteilt wird der Tag, nicht heute, und keine Serie", /#tag=2026-11-30$/.test(shared) && /nachgeholt/.test(shared) && !/Serie/.test(shared), shared);
+  // 30.11. gelöst; 1.12. und 2.12. sind offen -> weiter zum 1.12.
+  check("Weiter-Knopf führt zum nächsten offenen Tag", await p.evaluate(() => $("go").textContent === "Weiter: Tagesrätsel #9"), await p.evaluate(() => $("go").textContent));
   check("QR-Code des Tagesrätsels zeigt auf seinen Tag", await p.evaluate(() => currentLink().endsWith("#tag=2026-11-30")));
+  await p.click("#go");
+  check("Weiter öffnet den 1.12.", await p.evaluate(() => L.day === "2026-12-01" && L.archive && location.hash === "#tag=2026-12-01"));
   check("Serie und heutiger Stand bleiben", d.streak === 2 && d.last === "2026-12-04" && d.progress?.moves === 3, JSON.stringify([d.streak, d.last, d.progress]));
   await p.evaluate(() => { location.hash = "#heute"; });
   await p.waitForFunction(() => !L.archive && L.day === "2026-12-05");

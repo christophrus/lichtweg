@@ -901,7 +901,10 @@ function onWin() {
     else text = tx(`${r.moves} ${mv(r.moves)} · Ziel ${r.par} · Serie: ${save.daily.streak} ${days(save.daily.streak)}`, `${r.moves} ${mv(r.moves)} · target ${r.par} · streak: ${save.daily.streak} ${days(save.daily.streak)}`)
       + (first ? "" : tx(`<small>Diesmal ${moves} ${mv(moves)} – gewertet bleibt dein erster Versuch.</small>`, `<small>This time ${moves} ${mv(moves)} – your first try is the one that counts.</small>`))
       + tx(`<small>Nächstes Rätsel in ${Math.floor(mins / 60)} h ${mins % 60} min</small>`, `<small>Next puzzle in ${Math.floor(mins / 60)} h ${mins % 60} min</small>`);
-    $("share").hidden = false; $("share").textContent = tx("Teilen", "Share"); $("go").textContent = tx("Zu den Leveln", "To the levels");
+    const nx = nextOpenDay();
+    $("share").hidden = false; $("share").textContent = tx("Teilen", "Share");
+    $("go").textContent = nx ? (isPastDay(nx) ? tx(`Weiter: Tagesrätsel #${dayNumber(nx)}`, `Next: daily #${dayNumber(nx)}`) : tx("Weiter: heutiges Rätsel", "Next: today's puzzle"))
+      : tx("Zu den Leveln", "To the levels");
   }
   $("qrBtn").hidden = !["custom", "seed", "daily"].includes(mode);
   $("winStars").innerHTML = [1, 2, 3].map(i => `<span class="${i <= stars ? "on" : "off"}">★</span>`).join("");
@@ -1550,7 +1553,14 @@ cv.addEventListener("pointerdown", ev => { audio(); cursorOn = false; if (mode =
 cv.addEventListener("pointermove", () => { if (mode === "edit") cv.style.cursor = hover ? "pointer" : "default"; });
 const restart = () => mode === "daily" ? loadDaily(L.archive ? L.date : null) : mode === "custom" ? loadCustom(customCode, customFromEditor) : mode === "edit" ? null
   : mode === "seed" ? loadSeed(L.n, L.seed) : loadLevel(L.n);
-const proceed = () => mode === "daily" ? loadLevel(save.current || 1) : mode === "seed" ? seedLevel()
+// Nach einem nachgeholten Rätsel: der nächste noch offene Tag bis einschließlich heute
+function nextOpenDay() {
+  if (mode !== "daily" || !L.archive) return null;
+  const today = dayKey(dayOf(new Date()));
+  for (let t = shiftDay(L.date, 1); dayKey(t) <= today; t = shiftDay(t, 1)) if (!save.daily.results[dayKey(t)]) return t;
+  return null;
+}
+const proceed = () => mode === "daily" ? (nextOpenDay() ? loadDaily(isPastDay(nextOpenDay()) ? nextOpenDay() : null) : loadLevel(save.current || 1)) : mode === "seed" ? seedLevel()
   : mode === "custom" ? (customFromEditor ? openEditor() : loadLevel(save.current || 1)) : loadLevel(L.n + 1);
 const toggleDaily = () => mode === "daily" ? loadLevel(save.current || 1) : loadDaily();
 const nextLevel = () => { if (mode === "level" && L.n < save.unlocked) loadLevel(L.n + 1); };

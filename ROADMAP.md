@@ -93,6 +93,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v27.9 – QR-Code scharf und auf den richtigen Tag:** Der kleine QR-Code (quer, 150 px) hatte ungleich breite Module,
   einer von zwei OpenCV-Decodern las ihn nicht mehr. Die Anzeigegröße rastet jetzt auf ganze Bildschirmpixel pro
   Modul ein; bei allen geprüften Größen lesen beide Decoder ihn. Der QR-Code des Tagesrätsels zeigte noch auf `#heute`, jetzt auf `#tag=…`.
+- **v28 – Aufholen am Stück:** Nach einem nachgeholten Rätsel führt der Hauptknopf der Gewinnkarte (auch `Enter`/`N`)
+  zum nächsten offenen Tag, zuletzt zum heutigen Rätsel – statt zurück zu den Leveln.
 
 ## Als Nächstes
 
