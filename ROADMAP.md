@@ -100,6 +100,10 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v28.2 – Akku schonen:** Das Spiel zeichnete immer 60 Bilder pro Sekunde, auch in Ruhe. Jetzt volle Bildrate nur
   bei Eingabe, wachsendem Strahl, drehenden Spiegeln, Funken oder Tipp; sonst 20 Bilder pro Sekunde (−67 %), bei
   „Bewegung reduzieren“ eines pro Sekunde (−98 %). Browser-Test misst das.
+- **v28.3 – Zwei Tabs, kein Verlust:** Wer Lichtweg zweimal offen hatte (App und Browser), konnte Fortschritt verlieren:
+  Jeder Tab schrieb seinen ganzen Stand, der ältere überschrieb den neueren. Jetzt wird beim Speichern zusammengeführt
+  (höchstes Level, beste Sterne, alle Tagesrätsel, jüngere Serie), und ein offener Tab übernimmt Änderungen des
+  anderen sofort. Browser-Test mit zwei Tabs.
 
 ## Als Nächstes
 

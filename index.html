@@ -601,7 +601,25 @@ const save = (() => {
   try { return cleanSave(JSON.parse(raw || "{}")); }
   catch { store.set("lichtweg-kaputt", raw); return cleanSave({}); }
 })();
-const persist = () => store.set("lichtweg", JSON.stringify(save));
+// Zwei Tabs (oder App und Browser) gleichzeitig: Fortschritt wird zusammengeführt statt überschrieben.
+// Es zählt immer das Bessere: höchstes freigeschaltetes Level, beste Sterne, jedes gelöste Tagesrätsel (das erste
+// Ergebnis bleibt), die Serie mit dem jüngeren letzten Tag, der weitere Stand des heutigen Rätsels.
+function mergeSave(a, b) {
+  if (!isObj(b)) return a;
+  a.unlocked = Math.max(a.unlocked, b.unlocked | 0);
+  for (const [k, v] of Object.entries(b.stars || {})) if (typeof v === "number") a.stars[k] = Math.max(a.stars[k] || 0, v);
+  if (a.randomSolved || b.randomSolved) a.randomSolved = Math.max(a.randomSolved || 0, b.randomSolved || 0);
+  const bd = b.daily || {};
+  for (const [k, r] of Object.entries(bd.results || {})) if (!a.daily.results[k]) a.daily.results[k] = r;
+  if (bd.last && (!a.daily.last || bd.last > a.daily.last)) { a.daily.last = bd.last; a.daily.streak = bd.streak; }
+  else if (bd.last && bd.last === a.daily.last) a.daily.streak = Math.max(a.daily.streak, bd.streak | 0);
+  const p = a.daily.progress, q = bd.progress;
+  if (isObj(q) && (!p || q.day > p.day || (q.day === p.day && q.moves > p.moves))) a.daily.progress = q;
+  if (a.daily.progress && a.daily.results[a.daily.progress.day]) a.daily.progress = null;
+  return a;
+}
+const readStored = () => { try { return cleanSave(JSON.parse(store.get("lichtweg") || "{}")); } catch { return null; } };
+const persist = () => { mergeSave(save, readStored()); store.set("lichtweg", JSON.stringify(save)); };
 let mode = "level", L, T, shown = 0, moves = 0, won = false, litPrev = new Set(), hover = null, particles = [], winTimer = 0;
 let undoStack = [], cursor = null, cursorOn = false;
 const $ = id => document.getElementById(id);
@@ -638,6 +656,11 @@ function dailyLevel(t) {
 }
 const starsFor = (m, par) => m <= par ? 3 : m <= par + 2 ? 2 : 1;
 const starText = s => "★".repeat(s) + "☆".repeat(3 - s);
+// Ein anderer Tab hat gespeichert: hier übernehmen, damit dieser Tab beim nächsten Speichern nichts zurückdreht
+addEventListener("storage", ev => {
+  if (ev.key !== "lichtweg") return;
+  mergeSave(save, readStored()); updateDailyBadge();
+});
 function updateDailyBadge() { $("daily").classList.toggle("fresh", !save.daily.results[dayKey(dayOf(new Date()))]); }
 function setHash(h) { if (location.hash !== h) history.replaceState(null, "", h || location.pathname + location.search); }
 

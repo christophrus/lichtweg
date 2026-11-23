@@ -261,6 +261,24 @@ if (engine === "chromium") {
   await ctx.close();
 }
 
+// 11. Zwei Tabs: Was der eine schafft, dreht der andere beim Speichern nicht zurück
+{
+  const ctx = await browser.newContext({ locale: "de-DE", serviceWorkers: "block" });
+  const b = await ctx.newPage(); await b.goto(base); await b.waitForFunction(() => typeof L !== "undefined" && L);
+  const a = await ctx.newPage(); await a.goto(base); await a.waitForFunction(() => typeof L !== "undefined" && L);
+  await a.evaluate(() => { loadLevel(1); for (const c of L.grid.flat()) if (c.t === MIRROR && c.solO !== undefined && c.o !== c.solO) flip(c); });
+  await a.waitForSelector("#win.show", { timeout: 8000 });
+  await a.evaluate(() => { loadDaily(); for (const c of L.grid.flat()) { let g = 0; while (rotatable(c) && g++ < 4 && (c.t === PRISM ? c.r !== c.sol : c.solO !== undefined && c.o !== c.solO)) flip(c); } });
+  await a.waitForFunction(() => !!save.daily.results[L.day], null, { timeout: 8000 });
+  await b.waitForFunction(() => save.unlocked >= 2, null, { timeout: 3000 }).catch(() => {});
+  const seen = await b.evaluate(() => [save.unlocked, Object.keys(save.daily.results).length, $("daily").classList.contains("fresh")]);
+  check("Zweiter Tab übernimmt Fortschritt und Tagesrätsel", seen[0] >= 2 && seen[1] === 1 && !seen[2], seen.join("/"));
+  await b.evaluate(() => { save.unlocked = 1; save.stars = {}; save.daily.results = {}; persist(); });   // veralteter Stand speichert
+  const kept = await a.evaluate(() => { const s = JSON.parse(localStorage.getItem("lichtweg")); return [s.unlocked, !!s.stars[1], Object.keys(s.daily.results).length]; });
+  check("Veralteter Tab dreht nichts zurück", kept[0] >= 2 && kept[1] && kept[2] === 1, kept.join("/"));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen.` : "\nAlles in Ordnung.");
 process.exit(failed ? 1 : 0);
