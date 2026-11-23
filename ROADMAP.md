@@ -90,6 +90,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v27.8 – QR-Code in seiner Karte:** Eine allgemeine `canvas`-Regel fürs Spielfeld (`position:fixed`) traf auch
   den QR-Code und löste ihn aus seiner Karte; seit v27.2 schnitt die scrollende Karte ihn ab. Die Regel gilt jetzt nur
   noch dem Spielfeld, und der QR-Code passt sich quer der Höhe an. Statischer und Browser-Test dazu.
+- **v27.9 – QR-Code scharf und auf den richtigen Tag:** Der kleine QR-Code (quer, 150 px) hatte ungleich breite Module,
+  einer von zwei OpenCV-Decodern las ihn nicht mehr. Die Anzeigegröße rastet jetzt auf ganze Bildschirmpixel pro
+  Modul ein; bei allen geprüften Größen lesen beide Decoder ihn. Der QR-Code des Tagesrätsels zeigte noch auf `#heute`, jetzt auf `#tag=…`.
 
 ## Als Nächstes
 

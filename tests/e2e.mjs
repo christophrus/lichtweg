@@ -181,8 +181,10 @@ if (engine === "chromium") {
     await p.setViewportSize({ width: w, height: h });
     await p.evaluate(() => showQR(location.href)); await p.waitForTimeout(450);
     const r = await p.evaluate(() => { const c = $("qrBox").querySelector(".card").getBoundingClientRect(), q = $("qrCanvas").getBoundingClientRect();
-      return { inCard: q.top >= c.top && q.bottom <= c.bottom && q.left >= c.left && q.right <= c.right, onScreen: c.top >= 0 && c.bottom <= innerHeight, size: Math.round(q.width) }; });
-    check(`QR-Code ganz in seiner Karte (${w}×${h})`, r.inCard && r.onScreen && r.size >= 140, JSON.stringify(r));
+      const px = q.width * devicePixelRatio / +$("qrCanvas").dataset.n;
+      return { inCard: q.top >= c.top && q.bottom <= c.bottom && q.left >= c.left && q.right <= c.right, onScreen: c.top >= 0 && c.bottom <= innerHeight,
+        size: Math.round(q.width), whole: Math.abs(px - Math.round(px)) < .01 }; });
+    check(`QR-Code ganz in seiner Karte, Module ganze Pixel (${w}×${h})`, r.inCard && r.onScreen && r.size >= 140 && r.whole, JSON.stringify(r));
     await p.evaluate(() => closeQR());
   }
   await p.setViewportSize({ width: 667, height: 375 });
@@ -223,6 +225,7 @@ if (engine === "chromium") {
   check("Nachgeholt steht im Kalender", d.results["2026-11-30"]?.late === true);
   const shared = await p.evaluate(() => dailyShareText());
   check("Geteilt wird der Tag, nicht heute, und keine Serie", /#tag=2026-11-30$/.test(shared) && /nachgeholt/.test(shared) && !/Serie/.test(shared), shared);
+  check("QR-Code des Tagesrätsels zeigt auf seinen Tag", await p.evaluate(() => currentLink().endsWith("#tag=2026-11-30")));
   check("Serie und heutiger Stand bleiben", d.streak === 2 && d.last === "2026-12-04" && d.progress?.moves === 3, JSON.stringify([d.streak, d.last, d.progress]));
   await p.evaluate(() => { location.hash = "#heute"; });
   await p.waitForFunction(() => !L.archive && L.day === "2026-12-05");
