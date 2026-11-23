@@ -38,8 +38,17 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   schaltet Ton und Vibration zusammen. Den Klangteppich allein schaltet man in der Levelübersicht aus.
 - **Atmosphäre:** Unter den Glocken liegt ein leiser Klangteppich. Jeder leuchtende Kristall bringt eine eigene Stimme
   dazu. Der Himmel folgt der Uhrzeit: Nacht, Morgenrot, Tag und Abendrot.
+- **Sprache:** Deutsch oder Englisch, je nach Browser. Umschalten in der Levelübersicht.
 - Fortschritt, Sterne und Serie liegen im `localStorage` des Browsers. Die Levelübersicht zeigt eine kleine Statistik
   (perfekte Level, gelöste Tagesrätsel, längste Serie, Zufallslevel).
 - Lokal: `index.html` öffnen oder `python -m http.server 8765` starten.
 
 Was als Nächstes kommt: [ROADMAP.md](ROADMAP.md)
+
+## English
+
+A calm light puzzle in a single HTML file: turn mirrors and guide the beam through every crystal into the lens.
+Play at https://christophrus.github.io/lichtweg/ (daily puzzle: `#heute`). The game switches to English when your
+browser isn't set to German, and the level overview has a language button. It includes endless generated levels,
+a daily puzzle, colour gates, beam splitters, portals, prisms, a level editor with share links, random levels and
+hints. Everything runs offline in the browser, with no accounts and no tracking.

@@ -29,12 +29,13 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v13 – Sonntagsrätsel** (ab 29.11.2026): sonntags mit Strahlteiler und Prisma. Werktage bleiben, wie sie waren.
 - **v14 – Tipp, Klangteppich-Schalter, Portal-Mittwoch:** Der Tipp zeigt das erste falsche Teil und kostet einen Zug.
   Der Klangteppich lässt sich einzeln abschalten. Ab 2.12.2026 hat das Tagesrätsel mittwochs ein Portal.
+- **v15 – English:** komplette englische Fassung, je nach Browsersprache, umschaltbar in der Levelübersicht.
 
 ## Als Nächstes
 
 Neue Mechaniken werden im Generator rückwärts gebaut und sind damit automatisch lösbar. Sie kommen mit einem
-kurzen Hinweis-Level. Ideen, die noch reifen:
-- Englische Fassung, damit sich geteilte Level auch international lesen lassen.
+kurzen Hinweis-Level. Die Liste ist gerade abgearbeitet. Neue Punkte kommen aus dem Spielen und aus Rückmeldungen:
+Was zu schwer, zu selten oder unklar ist, landet hier.
 
 ## Bewusst nicht geplant
 - Konten, Bestenlisten mit Server, Werbung, Tracking.

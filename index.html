@@ -115,7 +115,7 @@
   <h2>Level</h2>
   <p id="levelsInfo"></p>
   <div id="levelGrid"></div>
-  <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="droneBtn" title="Leiser Klangteppich unter den Glocken">Klangteppich: an</button><button id="rand">Zufallslevel</button><button id="build">Selbst bauen</button><button id="closeLevels">Schließen</button></div>
+  <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="droneBtn" title="Leiser Klangteppich unter den Glocken">Klangteppich: an</button><button id="rand">Zufallslevel</button><button id="build">Selbst bauen</button><button id="langBtn" lang="en">English</button><button id="closeLevels">Schließen</button></div>
 </div></div>
 <div id="win"><div class="card">
   <h2 id="winTitle">Licht gefunden</h2>
@@ -126,6 +126,11 @@
 
 <script>
 "use strict";
+// ---------- Sprache: Deutsch oder Englisch (nach Browser, umschaltbar in der Levelübersicht) ----------
+const EN = (globalThis.localStorage?.getItem?.("lichtweg-lang") || (globalThis.navigator?.language || "de").slice(0, 2)) !== "de";
+const tx = (de, en) => EN ? en : de;
+const mv = n => n === 1 ? tx("Zug", "move") : tx("Züge", "moves");
+const days = n => n === 1 ? tx("Tag", "day") : tx("Tage", "days");
 // ---------- Grundlagen ----------
 const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];          // 0 rechts, 1 unten, 2 links, 3 oben
 const SLASH = [3, 2, 1, 0];                              // Spiegel "/"
@@ -622,14 +627,16 @@ function loadDaily() {
   const pr = save.daily.progress;
   startPlay(lv, !done && pr && pr.day === key ? pr.moves : 0);   // Neustart setzt die Züge nicht zurück
   save.mode = "daily"; persist(); setHash("#heute");
-  $("lvl").textContent = `Tagesrätsel #${lv.num} · ${t.d}.${t.m}.`;
+  $("lvl").textContent = tx(`Tagesrätsel #${lv.num} · ${t.d}.${t.m}.`, `Daily #${lv.num} · ${t.m}/${t.d}`);
   $("prev").disabled = $("next").disabled = true;
   $("daily").classList.add("active");
   $("hint").textContent = done
-    ? `Heute gelöst: ${done.moves} Züge ${starText(done.stars)}. Weitere Versuche zählen nicht.`
-    : (isSunday(t) ? "Sonntagsrätsel: heute mit Strahlteiler und Prisma. " : hasPortal(lv) ? "Portal-Mittwoch: Licht, das in ein Portal fällt, kommt am Partner wieder heraus. "
-      : "Jeden Tag ein neues Rätsel, für alle gleich. ")
-      + "Es zählen alle Züge bis zur Lösung, auch über Neustarts hinweg.";
+    ? tx(`Heute gelöst: ${done.moves} Züge ${starText(done.stars)}. Weitere Versuche zählen nicht.`,
+      `Solved today: ${done.moves} ${mv(done.moves)} ${starText(done.stars)}. Further tries don't count.`)
+    : (isSunday(t) ? tx("Sonntagsrätsel: heute mit Strahlteiler und Prisma. ", "Sunday puzzle: with a beam splitter and a prism. ")
+      : hasPortal(lv) ? tx("Portal-Mittwoch: Licht, das in ein Portal fällt, kommt am Partner wieder heraus. ", "Portal Wednesday: light entering a portal comes out of its partner. ")
+      : tx("Jeden Tag ein neues Rätsel, für alle gleich. ", "A new puzzle every day, the same for everyone. "))
+      + tx("Es zählen alle Züge bis zur Lösung, auch über Neustarts hinweg.", "Every move until the solution counts, even across restarts.");
   $("hint").style.opacity = 1;
   layout();
 }
@@ -642,10 +649,20 @@ function loadLevel(n) {
   $("daily").classList.remove("active");
   $("lvl").textContent = "Level " + n + (save.stars[n] ? "  " + "★".repeat(save.stars[n]) : "");
   $("prev").disabled = n <= 1; $("next").disabled = n >= save.unlocked;
-  const hints = {
+  const hints = EN ? {
+    1: "Tap a mirror to turn it. Guide the light through the crystal into the lens.",
+    2: "Every crystal colours the light that passes through it.",
+    3: "Wrong turn? ↶ or Z takes back your last move. Stuck? ? shows a hint.",
+    4: "Mirrors with rivets are screwed in place.",
+    7: "Not every mirror is on the path.",
+    45: "New: prisms only reflect on their bright side, the dark back swallows the light. Each tap turns them a quarter turn.",
+    35: "New: portals. Light entering a portal comes out of its partner portal in the same direction.",
+    22: "New: glass beam splitters let light through and reflect it at the same time. Every lens must glow.",
+    10: "New: colour gates only let light of their colour pass. The symbol shows which crystal must colour it. Golden gates: only uncoloured light.",
+  } : {
     1: "Tippe auf einen Spiegel, um ihn zu drehen. Lenke das Licht durch den Kristall in die Linse.",
     2: "Jeder Kristall färbt das Licht, das ihn durchquert.",
-    3: "Verdreht? ↶ oder Z nimmt den letzten Zug zurück.",
+    3: "Verdreht? ↶ oder Z nimmt den letzten Zug zurück. Festgefahren? ? zeigt einen Tipp.",
     4: "Spiegel mit Nieten sind festgeschraubt.",
     7: "Nicht jeder Spiegel liegt auf dem Weg.",
     45: "Neu: Prismen spiegeln nur auf ihrer hellen Seite, die dunkle Rückseite schluckt das Licht. Jedes Tippen dreht sie um eine Vierteldrehung.",
@@ -667,9 +684,9 @@ function loadSeed(n, seed) {
   mode = "seed";
   const lv = generate(n, seed); lv.seed = seed;
   startPlay(lv); setHash(seedHash(n, seed));
-  $("lvl").textContent = `Zufallslevel · Stufe ${n}`;
+  $("lvl").textContent = tx(`Zufallslevel · Stufe ${n}`, `Random level · tier ${n}`);
   $("prev").disabled = $("next").disabled = true; $("daily").classList.remove("active");
-  $("hint").textContent = "Ein Level, das noch niemand gesehen hat. Gelöst kannst du es als Link teilen."; $("hint").style.opacity = 1;
+  $("hint").textContent = tx("Ein Level, das noch niemand gesehen hat. Gelöst kannst du es als Link teilen.", "A level nobody has seen yet. Once solved, you can share it as a link."); $("hint").style.opacity = 1;
   layout();
 }
 const seedLevel = () => loadSeed(Math.max(3, save.unlocked), (Math.random() * 2 ** 31) >>> 0);
@@ -709,12 +726,14 @@ function showTip() {
   tipCell = pick; tipUntil = performance.now() + 2800;
   moves++; $("moves").textContent = moves;
   if (mode === "daily" && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
-  say(`Tipp: Das Teil in Spalte ${pick.x + 1}, Reihe ${pick.y + 1} steht falsch. Das kostet einen Zug.`);
+  say(tx(`Tipp: Das Teil in Spalte ${pick.x + 1}, Reihe ${pick.y + 1} steht falsch. Das kostet einen Zug.`, `Hint: the piece in column ${pick.x + 1}, row ${pick.y + 1} is turned wrong. That costs one move.`));
   tone(660, .2, .06); tone(880, .3, .05, "sine", .12);
 }
 
 function undo() { if (!won && undoStack.length) flip(undoStack.pop(), true); }
 
+const resultText = () => moves <= L.par ? tx(`${moves} Züge – perfekt.`, `${moves} ${mv(moves)} – perfect.`)
+  : tx(`${moves} Züge · Ziel war ${L.par}.`, `${moves} ${mv(moves)} · target was ${L.par}.`);
 function onWin() {
   won = true; updateUndo();
   [0, 2, 4, 7].forEach((i, k) => bell(note(i, 392), k * .11, .1));
@@ -726,16 +745,16 @@ function onWin() {
     save.stars[L.n] = Math.max(save.stars[L.n] || 0, stars);
     save.unlocked = Math.max(save.unlocked, L.n + 1); persist();
     $("next").disabled = false;
-    $("winTitle").textContent = "Licht gefunden";
-    text = moves <= L.par ? `${moves} Züge – perfekt.` : `${moves} Züge · Ziel war ${L.par}.`;
-    $("share").hidden = true; $("go").textContent = "Weiter →";
+    $("winTitle").textContent = tx("Licht gefunden", "Light found");
+    text = resultText();
+    $("share").hidden = true; $("go").textContent = tx("Weiter →", "Next →");
   } else if (mode === "custom" || mode === "seed") {
     stars = starsFor(moves, L.par);
-    $("winTitle").textContent = "Licht gefunden";
-    text = moves <= L.par ? `${moves} Züge – perfekt.` : `${moves} Züge · Ziel war ${L.par}.`;
-    $("share").hidden = false; $("share").textContent = "Link teilen";
+    $("winTitle").textContent = tx("Licht gefunden", "Light found");
+    text = resultText();
+    $("share").hidden = false; $("share").textContent = tx("Link teilen", "Share link");
     if (mode === "seed") { save.randomSolved = (save.randomSolved || 0) + 1; persist(); }
-    $("go").textContent = mode === "seed" ? "Noch ein Zufallslevel" : customFromEditor ? "Zum Editor" : "Zu den Leveln";
+    $("go").textContent = mode === "seed" ? tx("Noch ein Zufallslevel", "Another random level") : customFromEditor ? tx("Zum Editor", "Back to editor") : tx("Zu den Leveln", "To the levels");
   } else {
     let r = save.daily.results[L.day];
     const first = !r;
@@ -747,15 +766,15 @@ function onWin() {
     }
     stars = r.stars;
     const now = new Date(), mins = Math.ceil((new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now) / 6e4);
-    $("winTitle").textContent = `Tagesrätsel #${L.num}`;
-    text = `${r.moves} Züge · Ziel ${r.par} · Serie: ${save.daily.streak} ${save.daily.streak === 1 ? "Tag" : "Tage"}`
-      + (first ? "" : `<small>Diesmal ${moves} Züge – gewertet bleibt dein erster Versuch.</small>`)
-      + `<small>Nächstes Rätsel in ${Math.floor(mins / 60)} h ${mins % 60} min</small>`;
-    $("share").hidden = false; $("share").textContent = "Teilen"; $("go").textContent = "Zu den Leveln";
+    $("winTitle").textContent = tx(`Tagesrätsel #${L.num}`, `Daily #${L.num}`);
+    text = tx(`${r.moves} Züge · Ziel ${r.par} · Serie: ${save.daily.streak} ${days(save.daily.streak)}`, `${r.moves} ${mv(r.moves)} · target ${r.par} · streak: ${save.daily.streak} ${days(save.daily.streak)}`)
+      + (first ? "" : tx(`<small>Diesmal ${moves} Züge – gewertet bleibt dein erster Versuch.</small>`, `<small>This time ${moves} ${mv(moves)} – your first try is the one that counts.</small>`))
+      + tx(`<small>Nächstes Rätsel in ${Math.floor(mins / 60)} h ${mins % 60} min</small>`, `<small>Next puzzle in ${Math.floor(mins / 60)} h ${mins % 60} min</small>`);
+    $("share").hidden = false; $("share").textContent = tx("Teilen", "Share"); $("go").textContent = tx("Zu den Leveln", "To the levels");
   }
   $("winStars").innerHTML = [1, 2, 3].map(i => `<span class="${i <= stars ? "on" : "off"}">★</span>`).join("");
   $("winText").innerHTML = text;
-  say(`Gelöst! ${$("winText").innerText.split("\n")[0]}`);
+  say(`${tx("Gelöst!", "Solved!")} ${$("winText").innerText.split("\n")[0]}`);
   winTimer = setTimeout(() => $("win").classList.add("show"), 1100);
 }
 
@@ -768,17 +787,18 @@ async function shareText(text, button, label) {
     const ta = Object.assign(document.createElement("textarea"), { value: text });
     document.body.append(ta); ta.select(); ok = document.execCommand("copy"); ta.remove();
   }
-  if (button) { button.textContent = ok ? "Kopiert ✓" : "Kopieren fehlgeschlagen"; setTimeout(() => { button.textContent = label; }, 1800); }
+  if (button) { button.textContent = ok ? tx("Kopiert ✓", "Copied ✓") : tx("Kopieren fehlgeschlagen", "Copy failed"); setTimeout(() => { button.textContent = label; }, 1800); }
   return ok;
 }
 const levelLink = code => location.origin + location.pathname + "#l=" + code;
 
 async function shareDaily() {
-  if (mode === "seed") return shareText(`Lichtweg · Zufallslevel, Stufe ${L.n} (Ziel: ${L.par} ${L.par === 1 ? "Zug" : "Züge"})\n`
-    + location.origin + location.pathname + seedHash(L.n, L.seed), $("share"), "Link teilen");
-  if (mode === "custom") return shareText(`Lichtweg · Ein Level für dich (Ziel: ${L.par} ${L.par === 1 ? "Zug" : "Züge"})\n` + levelLink(customCode), $("share"), "Link teilen");
+  if (mode === "seed") return shareText(tx(`Lichtweg · Zufallslevel, Stufe ${L.n} (Ziel: ${L.par} ${mv(L.par)})\n`, `Lichtweg · random level, tier ${L.n} (target: ${L.par} ${mv(L.par)})\n`)
+    + location.origin + location.pathname + seedHash(L.n, L.seed), $("share"), tx("Link teilen", "Share link"));
+  if (mode === "custom") return shareText(tx(`Lichtweg · Ein Level für dich (Ziel: ${L.par} ${mv(L.par)})\n`, `Lichtweg · a level for you (target: ${L.par} ${mv(L.par)})\n`) + levelLink(customCode), $("share"), tx("Link teilen", "Share link"));
   const r = save.daily.results[L.day]; if (!r) return;
-  const text = `Lichtweg · Tagesrätsel #${L.num}\n${starText(r.stars)} ${r.moves} Züge (Ziel ${r.par}) · Serie ${save.daily.streak}\n`
+  const text = tx(`Lichtweg · Tagesrätsel #${L.num}\n${starText(r.stars)} ${r.moves} Züge (Ziel ${r.par}) · Serie ${save.daily.streak}\n`,
+    `Lichtweg · daily #${L.num}\n${starText(r.stars)} ${r.moves} ${mv(r.moves)} (target ${r.par}) · streak ${save.daily.streak}\n`)
     + location.origin + location.pathname + "#heute";
   if (navigator.share && matchMedia("(pointer: coarse)").matches) {
     try { await navigator.share({ text }); return; } catch (e) { if (e.name === "AbortError") return; }
@@ -788,13 +808,15 @@ async function shareDaily() {
     const ta = Object.assign(document.createElement("textarea"), { value: text });
     document.body.append(ta); ta.select(); ok = document.execCommand("copy"); ta.remove();
   }
-  $("share").textContent = ok ? "Kopiert ✓" : "Kopieren fehlgeschlagen";
-  setTimeout(() => { $("share").textContent = "Teilen"; }, 1800);
+  $("share").textContent = ok ? tx("Kopiert ✓", "Copied ✓") : tx("Kopieren fehlgeschlagen", "Copy failed");
+  setTimeout(() => { $("share").textContent = tx("Teilen", "Share"); }, 1800);
 }
 
 // ---------- Editor ----------
 let tool = "mirror", customCode = null, customFromEditor = false;
-const TOOLS = [["src", "Quelle"], ["recv", "Linse"], ["mirror", "Spiegel"], ["fixed", "Fester Spiegel"], ["split", "Teiler"],
+const TOOLS = EN ? [["src", "Source"], ["recv", "Lens"], ["mirror", "Mirror"], ["fixed", "Fixed mirror"], ["split", "Splitter"],
+  ["crystal", "Crystal"], ["gate", "Gate"], ["portal", "Portal"], ["prism", "Prism"], ["wall", "Wall"], ["erase", "Eraser"]]
+  : [["src", "Quelle"], ["recv", "Linse"], ["mirror", "Spiegel"], ["fixed", "Fester Spiegel"], ["split", "Teiler"],
   ["crystal", "Kristall"], ["gate", "Tor"], ["portal", "Portal"], ["prism", "Prisma"], ["wall", "Wand"], ["erase", "Radierer"]];
 const EDIT_DEFAULT = (() => {   // 7×7: Quelle links, Linse rechts, dazwischen freie Bahn
   const size = 7, g = Array.from({ length: size }, (_, y) => Array.from({ length: size }, (_, x) => makeCell(EMPTY, 0, x, y)));
@@ -804,20 +826,21 @@ const EDIT_DEFAULT = (() => {   // 7×7: Quelle links, Linse rechts, dazwischen 
 const editMsg = (m, warn = false) => { $("toolmsg").textContent = m; $("toolmsg").style.color = warn ? "#ffb38a" : ""; };
 function saveDraft() { localStorage.setItem("lichtweg-editor", encodeLevel(L)); }
 const portalTrouble = lv => { const cnt = [0, 0, 0, 0]; for (const c of lv.grid.flat()) if (c.t === PORTAL) cnt[c.id]++;
-  const k = cnt.findIndex(v => v && v !== 2); return k < 0 ? null : `Portalpaar ${k + 1} hat ${cnt[k] === 1 ? "erst ein Portal" : cnt[k] + " Portale"}. Es braucht genau zwei.`; };
+  const k = cnt.findIndex(v => v && v !== 2); return k < 0 ? null : tx(`Portalpaar ${k + 1} hat ${cnt[k] === 1 ? "erst ein Portal" : cnt[k] + " Portale"}. Es braucht genau zwei.`,
+    `Portal pair ${k + 1} has ${cnt[k] === 1 ? "only one portal" : cnt[k] + " portals"}. It needs exactly two.`); };
 function editStatus() {
-  if (!L.src) return editMsg("Setze eine Lichtquelle (mehrmals tippen dreht sie).");
+  if (!L.src) return editMsg(tx("Setze eine Lichtquelle (mehrmals tippen dreht sie).", "Place a light source (tap again to turn it)."));
   const pt = portalTrouble(L); if (pt) return editMsg(pt, true);
-  if (!L.recvs.length) return editMsg("Setze mindestens eine Linse.");
-  if (isSolved(L, T)) return editMsg("✓ Der Lösungsweg steht. Jetzt testen oder teilen – die Spiegel werden dabei verdreht.");
-  editMsg("Baue den Lösungsweg: Das Licht muss durch alle Kristalle in jede Linse. Nochmal tippen dreht oder färbt um.");
+  if (!L.recvs.length) return editMsg(tx("Setze mindestens eine Linse.", "Place at least one lens."));
+  if (isSolved(L, T)) return editMsg(tx("✓ Der Lösungsweg steht. Jetzt testen oder teilen – die Spiegel werden dabei verdreht.", "✓ The solution works. Now test or share – the mirrors get scrambled."));
+  editMsg(tx("Baue den Lösungsweg: Das Licht muss durch alle Kristalle in jede Linse. Nochmal tippen dreht oder färbt um.", "Build the solution: the light must pass every crystal into every lens. Tap again to turn or recolour."));
 }
 function openEditor(level) {
   mode = "edit"; won = false; clearTimeout(winTimer); $("win").classList.remove("show"); closeLevels();
   L = level || decodeLevel(localStorage.getItem("lichtweg-editor") || "", true) || EDIT_DEFAULT();
   T = trace(L); shown = 0; particles = []; litPrev = new Set(); undoStack = []; updateUndo(); cursorOn = false;
   setHash("#bauen");
-  $("lvl").textContent = "Level-Editor"; $("stats").style.visibility = "hidden";
+  $("lvl").textContent = tx("Level-Editor", "Level editor"); $("stats").style.visibility = "hidden";
   $("prev").disabled = $("next").disabled = true; $("daily").classList.remove("active");
   $("hint").textContent = ""; $("tools").hidden = false; $("esize").value = L.size;
   $("toolRow").innerHTML = "";
@@ -846,7 +869,7 @@ function editAt(c) {
       for (const o of L.grid.flat()) if (o.t === PORTAL && o !== c) cnt[o.id]++;
       let id = c.t === PORTAL ? (c.id + 1) % 4 : cnt.indexOf(1);
       if (id < 0) id = cnt.indexOf(0);
-      if (id < 0) return editMsg("Mehr als vier Portalpaare gehen nicht.", true);
+      if (id < 0) return editMsg(tx("Mehr als vier Portalpaare gehen nicht.", "No more than four portal pairs."), true);
       prm = 16 + id; break;
     }
     case "src": t = SRC; prm = c.t === SRC ? (c.d + 1) % 4 : 0;
@@ -870,14 +893,14 @@ function resizeEditor(size) {
 }
 // Lösung verdrehen: jeder drehbare Teil mit 50 % Chance, bis das Level ungelöst ist. Ziel = Zahl der Drehungen.
 function scrambleForShare() {
-  if (!L.src) { editMsg("Es fehlt eine Lichtquelle.", true); return null; }
-  if (!L.recvs.length) { editMsg("Es fehlt eine Linse.", true); return null; }
+  if (!L.src) { editMsg(tx("Es fehlt eine Lichtquelle.", "A light source is missing."), true); return null; }
+  if (!L.recvs.length) { editMsg(tx("Es fehlt eine Linse.", "A lens is missing."), true); return null; }
   const pt = portalTrouble(L); if (pt) { editMsg(pt, true); return null; }
-  if (!isSolved(L, trace(L))) { editMsg("Erst muss der Lösungsweg stehen: Licht durch alle Kristalle in jede Linse.", true); return null; }
+  if (!isSolved(L, trace(L))) { editMsg(tx("Erst muss der Lösungsweg stehen: Licht durch alle Kristalle in jede Linse.", "First the solution must work: light through every crystal into every lens."), true); return null; }
   const solved = encodeLevel(L);
   for (let a = 0; a < 300; a++) {
     const lv = decodeLevel(solved, true), rot = lv.grid.flat().filter(rotatable);
-    if (!rot.length) { editMsg("Ohne drehbare Spiegel, Teiler oder Prismen gibt es nichts zu rätseln.", true); return null; }
+    if (!rot.length) { editMsg(tx("Ohne drehbare Spiegel, Teiler oder Prismen gibt es nichts zu rätseln.", "Without turnable mirrors, splitters or prisms there is nothing to solve."), true); return null; }
     let n = 0;
     for (const c of rot) if (Math.random() < .5) {
       if (c.t === PRISM) { const k = 1 + Math.floor(Math.random() * 3); c.r = (c.r + k) % 4; n += 4 - k; }   // zurück nur vorwärts: 4 − k Tipper
@@ -887,18 +910,19 @@ function scrambleForShare() {
     lv.par = n;
     if (!isSolved(lv, trace(lv))) return encodeLevel(lv);
   }
-  editMsg("Ich finde keine verdrehte Stellung, in der das Licht nicht schon ankommt. Mehr Spiegel einbauen?", true);
+  editMsg(tx("Ich finde keine verdrehte Stellung, in der das Licht nicht schon ankommt. Mehr Spiegel einbauen?", "I can't find a scrambled state where the light doesn't already arrive. Add more mirrors?"), true);
   return null;
 }
 function loadCustom(code, fromEditor = false) {
   const lv = decodeLevel(code);
-  if (!lv) { loadLevel(save.current || 1); $("hint").textContent = "Dieser Level-Link ist leider kaputt."; $("hint").style.opacity = 1; layout(); return; }
+  if (!lv) { loadLevel(save.current || 1); $("hint").textContent = tx("Dieser Level-Link ist leider kaputt.", "Sorry, this level link is broken."); $("hint").style.opacity = 1; layout(); return; }
   mode = "custom"; customCode = code; customFromEditor = fromEditor;
   startPlay(lv);
   setHash("#l=" + code);
-  $("lvl").textContent = fromEditor ? "Test: eigenes Level" : "Geteiltes Level";
+  $("lvl").textContent = fromEditor ? tx("Test: eigenes Level", "Test: your level") : tx("Geteiltes Level", "Shared level");
   $("prev").disabled = $("next").disabled = true; $("daily").classList.remove("active");
-  $("hint").textContent = `${fromEditor ? "So sieht es für andere aus." : "Jemand hat dieses Level für dich gebaut."} Ziel: ${lv.par} ${lv.par === 1 ? "Zug" : "Züge"}.`;
+  $("hint").textContent = fromEditor ? tx(`So sieht es für andere aus. Ziel: ${lv.par} ${mv(lv.par)}.`, `This is how others will see it. Target: ${lv.par} ${mv(lv.par)}.`)
+    : tx(`Jemand hat dieses Level für dich gebaut. Ziel: ${lv.par} ${mv(lv.par)}.`, `Someone built this level for you. Target: ${lv.par} ${mv(lv.par)}.`);
   $("hint").style.opacity = 1; layout();
 }
 
@@ -1011,10 +1035,10 @@ function frame(now) {
   const lit = new Set(); for (const e of T.events) if (e.dist <= shown) lit.add(e.cell);
   droneTick(new Set([...lit].filter(c => c.t === CRYSTAL).map(c => c.shape)));
   for (const c of lit) if (!litPrev.has(c) && c.t === CRYSTAL) { bell(note(L.crystals.indexOf(c) + 2), 0, .09); burst(c._x, c._y, c.hue, 26); buzz(14);
-    say(`Kristall leuchtet: ${L.crystals.filter(k => lit.has(k)).length} von ${L.crystals.length}`); }
+    say(tx(`Kristall leuchtet: ${L.crystals.filter(k => lit.has(k)).length} von ${L.crystals.length}`, `Crystal lit: ${L.crystals.filter(k => lit.has(k)).length} of ${L.crystals.length}`)); }
   litPrev = lit;
   if (!won && mode !== "edit" && shown >= T.dist && isSolved(L, T)) onWin();
-  if (T.blocked.length && shown >= T.dist && !T.signaled) { T.signaled = true; tone(146, .35, .07, "sine"); tone(110, .45, .05, "triangle"); buzz(30); say("Ein Farbtor blockiert das Licht."); }
+  if (T.blocked.length && shown >= T.dist && !T.signaled) { T.signaled = true; tone(146, .35, .07, "sine"); tone(110, .45, .05, "triangle"); buzz(30); say(tx("Ein Farbtor blockiert das Licht.", "A colour gate blocks the light.")); }
   for (const r of L.recvs) { const e = T.events.find(e => e.cell === r && e.dist <= shown); r._hue = e ? e.hue : GOLD; }
 
   // Brett
@@ -1226,15 +1250,15 @@ function openLevels() {
     const open = n <= save.unlocked, st = save.stars[n] || 0, b = document.createElement("button");
     sum += st; b.disabled = !open;
     b.innerHTML = `${n}<small>${open ? "★".repeat(st) : "🔒"}</small>`;
-    b.setAttribute("aria-label", open ? `Level ${n}, ${st} Sterne` : `Level ${n}, gesperrt`);
+    b.setAttribute("aria-label", open ? tx(`Level ${n}, ${st} Sterne`, `Level ${n}, ${st} stars`) : tx(`Level ${n}, gesperrt`, `Level ${n}, locked`));
     if (mode === "level" && L.n === n) b.className = "cur";
     b.onclick = () => { closeLevels(); loadLevel(n); };
     g.append(b);
   }
   const perfect = Object.values(save.stars).filter(v => v === 3).length, ds = dailyStats(), extra = [];
-  if (ds.solved) extra.push(`Tagesrätsel: ${ds.solved} gelöst, ${ds.perfect} perfekt, längste Serie ${ds.best} ${ds.best === 1 ? "Tag" : "Tage"}`);
-  if (save.randomSolved) extra.push(`Zufallslevel: ${save.randomSolved} gelöst`);
-  $("levelsInfo").innerHTML = `${save.unlocked - 1} gelöst · ${sum} von ${(save.unlocked - 1) * 3} Sternen · ${perfect} perfekt`
+  if (ds.solved) extra.push(tx(`Tagesrätsel: ${ds.solved} gelöst, ${ds.perfect} perfekt, längste Serie ${ds.best} ${days(ds.best)}`, `Daily puzzles: ${ds.solved} solved, ${ds.perfect} perfect, longest streak ${ds.best} ${days(ds.best)}`));
+  if (save.randomSolved) extra.push(tx(`Zufallslevel: ${save.randomSolved} gelöst`, `Random levels: ${save.randomSolved} solved`));
+  $("levelsInfo").innerHTML = tx(`${save.unlocked - 1} gelöst · ${sum} von ${(save.unlocked - 1) * 3} Sternen · ${perfect} perfekt`, `${save.unlocked - 1} solved · ${sum} of ${(save.unlocked - 1) * 3} stars · ${perfect} perfect`)
     + extra.map(t => `<small>${t}</small>`).join("");
   $("levels").classList.add("show");
   const cur = g.querySelector(".cur") || g.querySelectorAll("button:not(:disabled)")[save.unlocked - 1];
@@ -1288,15 +1312,15 @@ $("go").onclick = proceed;
 $("share").onclick = shareDaily;
 $("build").onclick = () => openEditor();
 $("rand").onclick = () => { closeLevels(); seedLevel(); };
-const droneLabel = () => { $("droneBtn").textContent = `Klangteppich: ${droneOff ? "aus" : "an"}`; $("droneBtn").setAttribute("aria-pressed", String(!droneOff)); };
+const droneLabel = () => { $("droneBtn").textContent = tx(`Klangteppich: ${droneOff ? "aus" : "an"}`, `Drone: ${droneOff ? "off" : "on"}`); $("droneBtn").setAttribute("aria-pressed", String(!droneOff)); };
 $("droneBtn").onclick = () => { droneOff = !droneOff; localStorage.setItem("lichtweg-drone", droneOff ? "0" : "1"); droneLabel(); if (!droneOff) audio(); droneTick(new Set()); };
 droneLabel();
 $("esize").onchange = () => resizeEditor(+$("esize").value);
 $("eclear").onclick = () => { const size = L.size; L = EDIT_DEFAULT(); if (size !== 7) resizeEditor(size); else { T = trace(L); shown = 0; layout(); saveDraft(); editStatus(); } };
 $("etest").onclick = () => { const code = scrambleForShare(); if (code) loadCustom(code, true); };
 $("eshare").onclick = async () => { const code = scrambleForShare(); if (!code) return;
-  const ok = await shareText(`Lichtweg · Ein Level für dich\n` + levelLink(code), null);
-  editMsg(ok === false ? "Kopieren hat nicht geklappt. Link: " + levelLink(code) : "Link kopiert – jedes Teilen verdreht die Spiegel neu."); };
+  const ok = await shareText(tx(`Lichtweg · Ein Level für dich\n`, `Lichtweg · a level for you\n`) + levelLink(code), null);
+  editMsg(ok === false ? tx("Kopieren hat nicht geklappt. Link: ", "Copying failed. Link: ") + levelLink(code) : tx("Link kopiert – jedes Teilen verdreht die Spiegel neu.", "Link copied – every share scrambles the mirrors anew.")); };
 $("edone").onclick = () => loadLevel(save.current || 1);
 $("daily").onclick = toggleDaily;
 $("mute").onclick = toggleMute;
@@ -1310,6 +1334,25 @@ addEventListener("hashchange", () => {
 });
 // Tab offen über Mitternacht: Badge aktualisieren, damit das neue Rätsel auffällt
 setInterval(updateDailyBadge, 60000);
+
+// Statische Texte auf Englisch
+if (EN) {
+  document.documentElement.lang = "en";
+  const set = (id, text, title) => { const e = $(id); if (text != null) e.textContent = text; if (title) e.title = title; };
+  $("c").setAttribute("aria-label", "Board. Arrow keys select a mirror, space turns it.");
+  set("titleBtn", null, "Level overview (L)"); $("titleBtn").firstChild.textContent = "Lichtweg";
+  $("stats").innerHTML = 'Moves <b id="moves">0</b> · Target <b id="par">0</b>';
+  set("daily", null, "Daily puzzle (T)"); set("prev", null, "Previous level (P)"); set("undo", null, "Undo (Z)");
+  set("reset", null, "Restart (R)"); set("tip", null, "Hint: shows a wrongly turned piece, costs one move (H)");
+  set("next", null, "Next level (N)"); set("mute", null, "Sound and vibration on/off (M)");
+  set("esize", null, "Board size"); document.querySelector('label[for="esize"]').textContent = "Size"; set("eclear", "Clear"); set("etest", "Test"); set("eshare", "Share link"); set("edone", "Done");
+  document.querySelector("#levels h2").textContent = "Levels";
+  set("install", "Install as app"); set("droneBtn", null, "Soft drone under the bells"); set("rand", "Random level");
+  set("build", "Build your own"); set("closeLevels", "Close");
+  set("winTitle", "Light found"); set("again", "Again"); set("share", "Share"); set("go", "Next →");
+}
+if (EN) { $("langBtn").textContent = "Deutsch"; $("langBtn").lang = "de"; }
+$("langBtn").onclick = () => { localStorage.setItem("lichtweg-lang", EN ? "de" : "en"); location.reload(); };
 
 // Offline-Fähigkeit und "Als App installieren"
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
