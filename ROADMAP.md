@@ -85,6 +85,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v27.6 – Handy quer:** Bei quer gehaltenem Handy fraßen Kopfzeile und Hinweis die knappe Höhe, die Felder waren
   24 px (bei 568×320 nur 19 px). Jetzt stehen die Knöpfe als Spalte rechts, Titel, Züge und Hinweis links, und das
   Brett bekommt die volle Höhe: 38 bzw. 32 px pro Feld. Browser-Test prüft Größe und Überlappung.
+- **v27.7 – Editor quer:** Im Querformat schrumpfte das Editor-Brett unter der Werkzeugleiste auf 16 px pro Feld.
+  Jetzt stehen die Werkzeuge als scrollbare Spalte links, das Brett hat 47 px pro Feld.
 
 ## Als Nächstes
 

@@ -176,6 +176,11 @@ if (engine === "chromium") {
       overlap: [...btns, $("stats"), $("hint")].filter(hit).map(e => e.id), inside: board.t >= 0 && board.b <= innerHeight && board.r <= innerWidth };
   });
   check("Handy quer: Felder groß, nichts überdeckt das Brett", q.cs >= 34 && !q.small && !q.overlap.length && q.inside, JSON.stringify(q));
+  // Editor quer: Werkzeugspalte links neben dem Brett, bis „Fertig“ scrollbar
+  await p.evaluate(() => openEditor()); await p.waitForFunction(() => mode === "edit");
+  const e = await p.evaluate(() => { const t = $("tools").getBoundingClientRect(); $("edone").scrollIntoView({ block: "nearest" });
+    const d = $("edone").getBoundingClientRect(); return { cs: Math.round(cs), toolsRight: Math.round(t.right), ox, done: d.bottom <= innerHeight && d.top >= 0 }; });
+  check("Editor quer: Brett groß, Werkzeuge daneben", e.cs >= 34 && e.toolsRight <= e.ox && e.done, JSON.stringify(e));
   await ctx.close();
 }
 

@@ -121,6 +121,13 @@
   body.land #hud > .ctrl button { flex:none; width:48px; max-width:none; height:min(44px, calc((100vh - 56px) / 7)); min-height:0; padding:0; }
   body.land #hint { left:max(16px, env(safe-area-inset-left)); right:auto; width:calc(var(--lw, 160px) - 24px); padding:0;
     text-align:left; font-size:13px; bottom:max(14px, env(safe-area-inset-bottom)); }
+  /* Editor quer: Werkzeuge als scrollbare Spalte links unter dem Titel */
+  body.land #tools { top:58px; right:auto; width:var(--lw, 250px); box-sizing:border-box; overflow-y:auto; background:none; justify-content:flex-start;
+    align-items:stretch; padding:4px 8px max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+  body.land #tools > * { flex-shrink:0; }
+  body.land #tools .row { justify-content:flex-start; }
+  body.land #toolmsg { text-align:left; }
+  body.land #etitle { flex:1 1 100%; width:auto; }
 </style>
 </head>
 <body>
@@ -1230,13 +1237,13 @@ function layout() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR;
   if (!L) return;
-  const land = W > H && H <= 500 && $("tools").hidden;
+  const land = W > H && H <= 500, editing = !$("tools").hidden;
   document.body.classList.toggle("land", land);
-  if (land) {   // quer: rechts die Knopfspalte, links mindestens 150 px für Titel und Hinweis, dazwischen das Brett
-    const right = W - $("hud").querySelector(".ctrl").getBoundingClientRect().left + 12;
-    const side = Math.min(H - 20, W - right - 150);
+  if (land) {   // quer: rechts die Knopfspalte, links Titel und Hinweis (im Editor die Werkzeuge), dazwischen das Brett
+    const right = W - $("hud").querySelector(".ctrl").getBoundingClientRect().left + 12, minLeft = editing ? 250 : 150;
+    const side = Math.min(H - 20, W - right - minLeft);
     cs = Math.max(8, Math.floor(side / (L.size + .3)));
-    ox = Math.round(W - right - cs * L.size - Math.max(0, (W - right - 150 - cs * L.size) / 2)); oy = Math.round((H - cs * L.size) / 2);
+    ox = Math.round(W - right - cs * L.size - Math.max(0, (W - right - minLeft - cs * L.size) / 2)); oy = Math.round((H - cs * L.size) / 2);
     document.body.style.setProperty("--lw", Math.max(140, ox - 12) + "px");
     for (let y = 0; y < L.size; y++) for (let x = 0; x < L.size; x++) { const c = L.grid[y][x]; c._x = ox + (x + .5) * cs; c._y = oy + (y + .5) * cs; }
     return;
