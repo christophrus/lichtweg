@@ -9,6 +9,12 @@ const engine = process.env.LW_BROWSER || "chromium";
 // Lokal ohne Browser-Download: LW_CHANNEL=chrome nimmt das installierte Chrome
 const browser = await pw[engine].launch(process.env.LW_CHANNEL ? { channel: process.env.LW_CHANNEL } : {});
 console.log("Engine:", engine);
+// Absturz (z. B. Zeitüberschreitung) ebenfalls als lesbare Anmerkung
+process.on("uncaughtException", e => {
+  console.log(`FEHLER Absturz – ${e.message}`);
+  if (process.env.GITHUB_ACTIONS) console.log(`::error::${engine}: Absturz – ${String(e.message).replace(/\s+/g, " ").slice(0, 600)}`);
+  process.exit(1);
+});
 let failed = 0;
 const check = (name, ok, detail = "") => { console.log(`${ok ? "ok  " : "FEHLER"} ${name}${detail ? " – " + detail : ""}`); if (!ok) failed++;
   // In GitHub Actions zusätzlich als Anmerkung: öffentlich lesbar, auch ohne Anmeldung
