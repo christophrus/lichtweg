@@ -41,6 +41,7 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   Farbsehen lesbar. Vibration erst nach einer echten Berührung.
 - **v22 – Ansagen beim Spielen:** Screenreader beschreiben das gewählte Teil (Stellung, helle Seite, Lichtweg).
 - **v23 – Brett in Worten:** Taste `B` sagt das ganze Brett an, samt erreichten Linsen und Ende des Lichts.
+- **v23.1:** `B` auch im Editor, Einzahl in der Ansage, erste Linse kennt ihre Koordinaten (Level unverändert).
 
 ## Als Nächstes
 

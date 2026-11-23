@@ -236,7 +236,7 @@ function generate(n, seed = n * 1000003, opts = {}) {
 
     const grid = Array.from({ length: S }, () => Array.from({ length: S }, () => ({ t: EMPTY })));
     grid[src.y][src.x] = { t: SRC, d: src.d };
-    grid[recv.y][recv.x] = { t: RECV };
+    grid[recv.y][recv.x] = { t: RECV, x: recv.x, y: recv.y };
     const crystals = [];
     R.shuffle(straight.slice()).slice(0, p.crystals).forEach((c, i) => {
       const cell = { t: CRYSTAL, hue: HUES[i % HUES.length], shape: i % 5, x: c.x, y: c.y }; grid[c.y][c.x] = cell; crystals.push(cell); });
@@ -1469,7 +1469,8 @@ function describeBoard() {
   parts.push(tx(`Linsen ${L.recvs.filter(c => on.has(c)).length} von ${L.recvs.length} erreicht: `, `Lenses ${L.recvs.filter(c => on.has(c)).length} of ${L.recvs.length} reached: `)
     + L.recvs.map(c => `${at(c)}, ${lit(c)}`).join("; ") + ".");
   const turn = all.filter(rotatable).length, fixed = all.filter(c => c.t === MIRROR && c.locked).length;
-  parts.push(tx(`${turn} drehbare Teile`, `${turn} turnable pieces`) + (fixed ? tx(`, ${fixed} feste Spiegel.`, `, ${fixed} fixed mirrors.`) : "."));
+  parts.push(tx(turn === 1 ? "1 drehbares Teil" : `${turn} drehbare Teile`, turn === 1 ? "1 turnable piece" : `${turn} turnable pieces`)
+    + (fixed ? tx(fixed === 1 ? ", 1 fester Spiegel." : `, ${fixed} feste Spiegel.`, fixed === 1 ? ", 1 fixed mirror." : `, ${fixed} fixed mirrors.`) : "."));
   const ends = T.beams.filter(b => !b.events.some(e => e.cell.t === RECV || e.cell.t === PORTAL) && b.pts.length > 1).map(b => {
     const P = b.pts, a = P[P.length - 2], z = P[P.length - 1], dx = Math.sign(z.x - a.x), dy = Math.sign(z.y - a.y);
     const mid = Math.abs(z.x % 1 - .5) < 1e-6 && Math.abs(z.y % 1 - .5) < 1e-6;   // endet mitten im Feld (Rückseite eines Prismas)
@@ -1554,7 +1555,8 @@ addEventListener("keydown", ev => {
     if (k === " " || k === "enter") { ev.preventDefault(); if (cursorOn && cursor) editAt(L.grid[cursor.y][cursor.x]); else editCursor(0); return; }
     if (/^[0-9]$/.test(k)) { const tl = TOOLS[(+k + 9) % 10]; if (tl) selectTool(tl[0]); return; }
     if (k === "delete" && cursorOn && cursor) { const keep = tool; tool = "erase"; editAt(L.grid[cursor.y][cursor.x]); tool = keep; return; }
-    if (k === "z" || k === "backspace") undo(); else if (k === "m") toggleMute(); else if (k === "l") openLevels(); else if (k === "t") loadDaily(); return; }
+    if (k === "z" || k === "backspace") undo(); else if (k === "m") toggleMute(); else if (k === "l") openLevels(); else if (k === "t") loadDaily();
+    else if (k === "b") say(describeBoard()); return; }
   if (ev.target.tagName === "BUTTON" && (k === " " || k === "enter")) return;   // fokussierter Button bedient sich selbst
   if (k in ARROWS) { ev.preventDefault(); moveCursor(ARROWS[k]); }
   else if (k === " " || (k === "enter" && !won)) { ev.preventDefault(); if (cursorOn && cursor) flip(L.grid[cursor.y][cursor.x]); else moveCursor(0); }
