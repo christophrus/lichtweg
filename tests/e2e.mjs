@@ -84,6 +84,44 @@ const solve = p => p.evaluate(() => { for (const c of L.grid.flat()) if (c.t ===
   await p.context().close();
 }
 
+// 6. Editor: gelöstes Level teilen, Link in frischem Browser öffnen, Titel ist da, Level ist lösbar
+{
+  const p = await page();
+  await p.goto(base + "#bauen");
+  await p.waitForFunction(() => typeof mode !== "undefined" && mode === "edit");
+  const [link, solvedCode] = await p.evaluate(() => {
+    const lv = generate(5); for (const c of lv.grid.flat()) { if (c.flipped) c.o ^= 1; if (c.t === PRISM) c.r = c.sol; }
+    openEditor(lv); $("etitle").value = "Prüfstein <b>";
+    const solved = encodeLevel(L), code = scrambleForShare(); return [code && levelLink(withTitle(code)), solved];
+  });
+  check("Editor erzeugt einen Link", !!link);
+  const q = await page();
+  await q.goto(link);
+  await q.waitForFunction(() => typeof mode !== "undefined" && mode === "custom");
+  const title = await q.textContent("#lvl");
+  check("Geteilter Titel kommt als Text an", title === "„Prüfstein <b>“", title);
+  // Jedes Teil so drehen, wie es im gelösten Editor-Stand stand (wie ein Mensch durch Tippen)
+  await q.evaluate(code => { const S = decodeLevel(code, true);
+    for (const c of L.grid.flat()) { const s = S.grid[c.y][c.x]; let g = 0; while (rotatable(c) && (c.t === PRISM ? c.r !== s.r : c.o !== s.o) && g++ < 4) flip(c); } }, solvedCode);
+  const won = await q.waitForSelector("#win.show", { timeout: 8000 }).then(() => true, () => false);
+  check("Geteiltes Level ist lösbar", won);
+  check("Editor und Link ohne Fehler", !p.errors.length && !q.errors.length, [...p.errors, ...q.errors].join(" | "));
+  await p.context().close(); await q.context().close();
+}
+
+// 7. Offline: Nach dem ersten Besuch lädt das Spiel ohne Netz aus dem Service Worker
+{
+  const ctx = await browser.newContext({ locale: "de-DE" });
+  const p = await ctx.newPage();
+  await p.goto(base);
+  const ready = await p.evaluate(() => navigator.serviceWorker.ready.then(() => true)).catch(() => false);
+  await p.reload(); await p.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 8000 }).catch(() => {});
+  await ctx.setOffline(true);
+  const ok = await p.reload().then(() => p.waitForFunction(() => typeof L !== "undefined" && L, null, { timeout: 8000 })).then(() => true, () => false);
+  check("Offline spielbar nach dem ersten Besuch", ready && ok);
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen.` : "\nAlles in Ordnung.");
 process.exit(failed ? 1 : 0);
