@@ -73,3 +73,8 @@ Play at https://christophrus.github.io/lichtweg/ (daily puzzle: `#heute`). The g
 browser isn't set to German, and the level overview has a language button. It includes endless generated levels,
 a daily puzzle, colour gates, beam splitters, portals, prisms, a level editor with share links, random levels and
 hints. Everything runs offline in the browser, with no accounts and no tracking.
+
+## Rückmeldung
+
+In der Levelübersicht öffnet „Rückmeldung“ ein GitHub-Issue, vorausgefüllt mit dem Level, in dem du gerade bist.
+Was zu schwer, zu selten oder unklar ist, landet so direkt bei der Planung.

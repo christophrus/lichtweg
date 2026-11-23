@@ -52,11 +52,14 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   ohne Fehler. Kaputte Zufallslevel-Links melden sich jetzt auch, Screenreader hören die Meldung.
 - **v25.2 – Größere Knöpfe am Handy:** Die Spielknöpfe stehen auf schmalen Bildschirmen in eigener Zeile,
   mindestens 38×44 statt 25×36 px. Das Brett bleibt gleich groß (geprüft bei 375×812, 375×667, 320×568).
+- **v26 – Rückmeldung:** Knopf in der Levelübersicht öffnet ein GitHub-Issue mit dem aktuellen Level (ohne
+  persönliche Daten). Damit hat „Als Nächstes“ eine Quelle.
 
 ## Als Nächstes
 
 Neue Mechaniken werden im Generator rückwärts gebaut und sind damit automatisch lösbar. Sie kommen mit einem
-kurzen Hinweis-Level. Die Liste ist gerade abgearbeitet. Neue Punkte kommen aus dem Spielen und aus Rückmeldungen:
+kurzen Hinweis-Level. Die Liste ist gerade abgearbeitet. Neue Punkte kommen aus dem Spielen und aus Rückmeldungen
+(Knopf „Rückmeldung“ in der Levelübersicht, landet als Issue im Repo):
 Was zu schwer, zu selten oder unklar ist, landet hier.
 
 ## Bewusst nicht geplant

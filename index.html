@@ -142,7 +142,7 @@
   <div id="levelGrid"></div>
   <div id="cal" aria-hidden="true"></div>
   <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="droneBtn" title="Leiser Klangteppich unter den Glocken">Klangteppich: an</button><button id="rand">Zufallslevel</button><button id="build">Selbst bauen</button><button id="langBtn" lang="en">English</button><button id="closeLevels">Schließen</button></div>
-  <div class="ctrl minor"><button id="backup">Spielstand sichern</button><button id="restore">Spielstand laden</button></div>
+  <div class="ctrl minor"><button id="backup">Spielstand sichern</button><button id="restore">Spielstand laden</button><button id="feedback" title="Öffnet ein GitHub-Issue mit dem aktuellen Level">Rückmeldung</button></div>
 </div></div>
 <div id="qrBox" class="overlay"><div class="card" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
   <h2 id="qrTitle">Zum Scannen</h2>
@@ -1670,6 +1670,7 @@ if (EN) {
   document.querySelector("#levels h2").textContent = "Levels";
   set("install", "Install as app"); set("droneBtn", null, "Soft drone under the bells"); set("rand", "Random level");
   set("build", "Build your own"); set("closeLevels", "Close"); set("backup", "Back up progress"); set("restore", "Restore progress");
+  set("feedback", "Feedback", "Opens a GitHub issue with the current level");
   set("qrTitle", "Scan to play"); set("qrClose", "Close"); $("qrCanvas").setAttribute("aria-label", "QR code");
   set("qrBtn", null, "Show as QR code"); set("eqr", null, "Show as QR code");
   set("shot", "Picture"); $("shot").title = "Share a picture of the solved board";
@@ -1677,6 +1678,15 @@ if (EN) {
 }
 if (EN) { $("langBtn").textContent = "Deutsch"; $("langBtn").lang = "de"; }
 $("backup").onclick = () => shareText("LW1:" + btoa(unescape(encodeURIComponent(JSON.stringify(save)))), $("backup"), tx("Spielstand sichern", "Back up progress"));
+// Rückmeldung als GitHub-Issue: vorausgefüllt mit dem Ort im Spiel, ohne persönliche Daten
+$("feedback").onclick = () => {
+  const where = mode === "level" ? `Level ${L.n}` : mode === "edit" ? tx("Editor", "editor")
+    : mode === "daily" ? tx(`Tagesrätsel #${L.num} (${L.day})`, `Daily #${L.num} (${L.day})`) : currentLink();
+  const body = tx(`**Wo:** ${where}\n**Sprache:** Deutsch\n\n**Was ist passiert / was wünschst du dir?**\n\n`,
+    `**Where:** ${where}\n**Language:** English\n\n**What happened / what would you like?**\n\n`);
+  const url = "https://github.com/christophrus/lichtweg/issues/new?title=" + encodeURIComponent(tx("Rückmeldung: ", "Feedback: ")) + "&body=" + encodeURIComponent(body);
+  window.open(url, "_blank", "noopener");
+};
 $("restore").onclick = () => {
   const code = prompt(tx("Spielstand-Code einfügen (beginnt mit LW1:). Der jetzige Stand wird ersetzt.", "Paste a progress code (starts with LW1:). Your current progress will be replaced."));
   if (!code) return;
