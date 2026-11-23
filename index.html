@@ -58,11 +58,14 @@
   .card p { color:var(--dim); margin:6px 0 18px; font-size:14px; }
   .card .ctrl { justify-content:center; flex-wrap:wrap; }
   .card .ctrl.minor { margin-top:10px; } .card .ctrl.minor button { font-size:13px; padding:5px 10px; opacity:.8; }
-  #cal { display:grid; grid-template-columns:repeat(14, 1fr); gap:4px; width:min(420px, 78vw); margin:0 auto 14px; }
+  #cal { display:grid; grid-template-columns:repeat(7, 1fr); grid-auto-rows:28px; gap:4px; width:min(300px, 78vw); margin:0 auto 14px; }
   #cal:empty { display:none; }
-  #cal > * { aspect-ratio:1; border-radius:4px; background:rgba(255,255,255,.06); padding:0; border:0; min-width:0; }
-  #cal > i { opacity:.4; }
-  #cal > button:hover { background:rgba(255,255,255,.2); }
+  #cal > * { border-radius:5px; background:rgba(255,255,255,.06); padding:0; border:0; min-width:0;
+    font:11px/28px system-ui, sans-serif; color:rgba(255,255,255,.55); text-align:center; font-style:normal; }
+  #cal > b { background:none; font-weight:600; color:rgba(255,255,255,.35); line-height:20px; height:20px; }
+  #cal > i { opacity:.35; } #cal > i.future { background:none; outline:1px dashed rgba(255,255,255,.08); outline-offset:-1px; }
+  #cal > button { cursor:pointer; } #cal > button:hover { background:rgba(255,255,255,.2); color:#fff; }
+  #cal .s2, #cal .s3 { color:#1a1530; }
   #cal .s1 { background:rgba(255,210,122,.28); } #cal .s2 { background:rgba(255,210,122,.55); } #cal .s3 { background:rgba(255,210,122,.95); }
   #cal .today { outline:1px solid rgba(255,210,122,.8); outline-offset:1px; }
   .primary { background:rgba(255,210,122,.18); border-color:rgba(255,210,122,.5); }
@@ -1584,9 +1587,14 @@ function openLevels() {
   const cal = $("cal"); cal.innerHTML = "";
   const today = dayOf(new Date());
   if (ds.solved || dayNumber(today) > 1) {
-    for (let i = 27; i >= 0; i--) {
-      const d = shiftDay(today, -i), r = save.daily.results[dayKey(d)], open = dayNumber(d) >= 1;
+    // Vier Wochen, Spalten Montag bis Sonntag; die laufende Woche steht unten
+    for (const w of tx("MDMDFSS", "MTWTFSS")) { const h = document.createElement("b"); h.textContent = w; h.setAttribute("aria-hidden", "true"); cal.append(h); }
+    const wd = (new Date(today.y, today.m - 1, today.d).getDay() + 6) % 7;
+    for (let i = 21 + wd; i >= wd - 6; i--) {
+      const d = shiftDay(today, -i), r = save.daily.results[dayKey(d)], open = i >= 0 && dayNumber(d) >= 1;
       const e = document.createElement(open ? "button" : "i");
+      e.textContent = d.d; if (!open) e.setAttribute("aria-hidden", "true");
+      if (i < 0) { e.className = "future"; e.setAttribute("aria-hidden", "true"); cal.append(e); continue; }
       e.className = (r ? "s" + r.stars : "") + (i === 0 ? " today" : "");
       const label = `${tx(`${d.d}.${d.m}.`, `${d.m}/${d.d}`)}: ${r ? starText(r.stars) : tx("offen", "open")}`;
       e.title = label;

@@ -161,8 +161,11 @@ if (engine === "chromium") {
   await p.waitForFunction(() => typeof L !== "undefined" && L);
   await p.keyboard.press("l");
   await p.waitForSelector("#levels.show");
-  const cal = await p.evaluate(() => [$("cal").querySelectorAll("button").length, $("cal").querySelectorAll("i").length]);
-  check("Kalender: Tage seit #1 sind Knöpfe", cal[0] === 13 && cal[1] === 15, cal.join("/"));
+  const cal = await p.evaluate(() => [$("cal").querySelectorAll("button").length, $("cal").querySelectorAll("i").length,
+    [...$("cal").querySelectorAll("button")].filter(b => { const r = b.getBoundingClientRect(); return r.width < 24 || r.height < 24; }).length,
+    $("cal").lastElementChild.className, $("cal").querySelector(".today")?.textContent]);
+  check("Kalender: Tage seit #1 sind Knöpfe, Wochen von Montag bis Sonntag", cal[0] === 13 && cal[1] === 15 && cal[3] === "future" && cal[4] === "5", cal.join("/"));
+  check("Kalender: Tage mindestens 24×24 px", !cal[2], cal[2] + " zu klein");
   await p.click('#cal button[aria-label*="30.11."]');
   const st = await p.evaluate(() => [mode, L.archive, location.hash, L.day]);
   check("Archivtag öffnet sich", st[0] === "daily" && st[1] === true && st[2] === "#tag=2026-11-30", st.join(" "));

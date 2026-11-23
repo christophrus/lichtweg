@@ -69,6 +69,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v27 – Tagesrätsel-Archiv:** Verpasste Tage sind im Kalender antippbar (ab #1 bis gestern) und per
   `#tag=JJJJ-MM-TT` verlinkbar. Nachgeholte Rätsel füllen den Kalender, zählen aber nicht zur Serie und lassen den
   heutigen Spielstand in Ruhe. Browser-Test mit festgesetztem Datum.
+- **v27.1 – Wochenkalender:** Der Kalender hat jetzt sieben Spalten (Montag bis Sonntag) mit Wochentagen und
+  Tageszahlen; die Felder sind mindestens 24×24 px groß (WCAG 2.5.8), weil man sie jetzt antippt.
 
 ## Als Nächstes
 
