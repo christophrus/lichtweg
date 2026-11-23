@@ -14,3 +14,16 @@ jobs:
         with:
           node-version: 22
       - run: node tests/regress.js
+  qr:
+    # Liest 125 erzeugte QR-Codes mit zwei OpenCV-Decodern zurück
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy opencv-python-headless
+      - run: python tests/qr_check.py
