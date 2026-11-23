@@ -286,7 +286,7 @@ function tone(freq, dur, vol = .15, type = "sine", delay = 0) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .05);
 }
 // Sanfte Vibration auf Handys; folgt dem Ton-Schalter
-const buzz = pattern => { if (!muted && navigator.vibrate) try { navigator.vibrate(pattern); } catch {} };
+const buzz = pattern => { if (!muted && navigator.vibrate && navigator.userActivation?.hasBeenActive !== false) try { navigator.vibrate(pattern); } catch {} };
 const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
 const note = (i, base = 523.25) => base * Math.pow(2, PENTA[i % PENTA.length] / 12);
 function bell(f, delay = 0, vol = .12) { tone(f, 1.6, vol, "sine", delay); tone(f * 2.01, .9, vol * .35, "sine", delay); tone(f * 3.98, .4, vol * .12, "sine", delay); }
