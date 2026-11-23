@@ -64,6 +64,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   fängt den Ansage-Fehler aus v24 und einen Service Worker ohne Offline-Antwort.
 - **v26.5 – Drei Engines:** Der Browser-Test läuft in Chromium, Firefox und WebKit (Safari), dazu Handy-Ansicht
   mit echtem Tippen. Alle drei grün.
+- **v26.6 – Zoomen erlaubt:** Die Seite sperrte das Zoomen mit zwei Fingern (WCAG 1.4.4). Dazu Manifest-`id`,
+  kanonischer Link, neuer Cache-Name, damit installierte Apps das neue Manifest bekommen.
 
 ## Als Nächstes
 

@@ -1,6 +1,6 @@
 // Service Worker für Lichtweg: macht das Spiel offline spielbar.
 // Die Seite selbst kommt "network first" (Updates sind sofort da), alles andere aus dem Cache.
-const CACHE = "lichtweg-v2";
+const CACHE = "lichtweg-v3";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png",
