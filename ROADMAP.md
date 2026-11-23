@@ -45,6 +45,7 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v24 – Saubere Dialoge:** Unsichtbare Karten sind nicht mehr per Tab erreichbar, Übersicht, Gewinnkarte und
   QR-Karte sind Dialoge, der Fokus springt hinein und beim Schließen zurück. Geprüft mit einem Kontrast-Audit
   (alle Texte über WCAG AA, außer abgeschalteten Knöpfen).
+- **v24.1:** Der Regressionstest prüft auch das Seitengerüst: doppelte IDs, tote `$(…)`- und aria-Verweise.
 
 ## Als Nächstes
 

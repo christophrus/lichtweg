@@ -73,5 +73,16 @@ for (const n of [3, 22, 45, 120]) for (let i = 0; i < 60; i++) {
 }
 check("Zufallslevel lösbar", !sbad, sbad + " Fehler");
 
+// 7. Seitengerüst: jede ID nur einmal, jeder Verweis aus dem Code und aus aria-* zeigt auf etwas
+const markup = html.slice(0, html.indexOf("<script>")), script = html.slice(html.indexOf("<script>"));
+const ids = [...markup.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
+const made = [...script.matchAll(/\bid\s*=\s*"([^"]+)"/g)].map(m => m[1]);   // im Code erzeugte Elemente
+const dups = ids.filter((x, i) => ids.indexOf(x) !== i);
+check("Jede ID nur einmal", !dups.length, dups.join(", "));
+const refs = [...new Set([...script.matchAll(/\$\("([^"]+)"\)/g)].map(m => m[1]))].filter(r => !ids.includes(r) && !made.includes(r));
+check("Jedes $(…) findet sein Element", !refs.length, refs.join(", "));
+const aria = [...html.matchAll(/aria-(?:labelledby|describedby)="([^"]+)"/g)].flatMap(m => m[1].split(/\s+/)).filter(r => !ids.includes(r));
+check("aria-Verweise zeigen auf vorhandene IDs", !aria.length, aria.join(", "));
+
 console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen.` : "\nAlles in Ordnung.");
 process.exit(failed ? 1 : 0);
