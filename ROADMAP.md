@@ -12,6 +12,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   Spiegel zu Spiegel), Kristallformen für Farbfehlsichtige, Ansagen für Screenreader.
 - **v4 – Farbtore** (ab Level 10, Tagesrätsel ab 24.11.2026): Sie lassen nur Licht in ihrer Farbe durch, goldene Tore
   nur ungefärbtes. Level 1–9 und Tagesrätsel #1 sind unverändert. Spätere Level behalten ihren Aufbau, es kommen nur Tore dazu.
+- **v5 – Als App:** Manifest, Icons, Service Worker (offline spielbar), Installieren-Knopf, Vibration, sichere
+  Ränder für Notch-Handys.
 
 ## Als Nächstes
 
@@ -26,11 +28,7 @@ Jede Mechanik wird im Generator rückwärts gebaut und ist damit automatisch lö
   (`#l=…`), es braucht also keinen Server.
 - **Seed-Links:** `#seed=1234` für „versuch mal dieses hier“.
 
-### 3. Zuhause auf dem Handy
-- **PWA:** Manifest und Service Worker. Dann lässt sich das Spiel auf dem Homescreen installieren und spielt offline.
-- **Sanfte Haptik** (`navigator.vibrate`) beim Drehen und Lösen.
-
-### 4. Klang und Atmosphäre
+### 3. Klang und Atmosphäre
 - Leiser, generativer Hintergrund-Drone, der mit jedem leuchtenden Kristall eine Stimme dazubekommt.
 - Tageszeit-Himmel: Das Tagesrätsel hat morgens, mittags und nachts einen anderen Himmel.
 

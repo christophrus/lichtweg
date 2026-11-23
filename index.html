@@ -2,8 +2,16 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Lichtweg</title>
+<meta name="description" content="Ein ruhiges Licht-Puzzle: Spiegel drehen, den Strahl durch Kristalle in die Linse lenken. Mit Tagesrätsel.">
+<meta name="theme-color" content="#070a16">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lichtweg">
 <style>
   :root { --gold:#ffd27a; --ink:#e9ecf5; --dim:#8b93ad; }
   * { box-sizing: border-box; }
@@ -11,7 +19,8 @@
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif; overflow:hidden; user-select:none; }
   canvas { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:manipulation; }
   #hud { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; justify-content:space-between;
-    padding:14px 18px; pointer-events:none; gap:12px; }
+    padding:max(14px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 14px max(18px, env(safe-area-inset-left));
+    pointer-events:none; gap:12px; }
   #hud > * { pointer-events:auto; }
   .title { font-weight:300; letter-spacing:.32em; text-transform:uppercase; font-size:14px; color:var(--gold);
     text-shadow:0 0 14px rgba(255,200,110,.5); }
@@ -23,7 +32,7 @@
   button:disabled { opacity:.3; cursor:default; }
   #stats { font-variant-numeric:tabular-nums; color:var(--dim); font-size:14px; min-width:120px; text-align:center; }
   #stats b { color:var(--ink); font-weight:600; }
-  #hint { position:fixed; bottom:22px; left:0; right:0; text-align:center; color:var(--dim); font-size:14px;
+  #hint { position:fixed; bottom:calc(22px + env(safe-area-inset-bottom)); left:0; right:0; text-align:center; color:var(--dim); font-size:14px;
     transition:opacity .8s; pointer-events:none; padding:0 20px; }
   #win { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; opacity:0; transition:opacity .5s; }
   #win.show { opacity:1; pointer-events:auto; }
@@ -57,7 +66,7 @@
   #levelGrid button.cur { border-color:rgba(255,210,122,.7); background:rgba(255,210,122,.14); }
   .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
   @media (max-width: 560px) {
-    #hud { flex-wrap:wrap; padding:10px 12px; }
+    #hud { flex-wrap:wrap; padding:max(10px, env(safe-area-inset-top)) 12px 10px; }
     #stats { order:3; width:100%; text-align:left; min-width:0; }
     .ctrl { gap:5px; }
     button { padding:7px 9px; }
@@ -75,7 +84,7 @@
     <button id="undo" title="Rückgängig (Z)">↶</button>
     <button id="reset" title="Neu starten (R)">↺</button>
     <button id="next" title="Nächstes Level (N)">›</button>
-    <button id="mute" title="Ton an/aus (M)">♪</button>
+    <button id="mute" title="Ton und Vibration an/aus (M)">♪</button>
   </div>
 </div>
 <div id="hint"></div>
@@ -84,7 +93,7 @@
   <h2>Level</h2>
   <p id="levelsInfo"></p>
   <div id="levelGrid"></div>
-  <div class="ctrl"><button id="closeLevels">Schließen</button></div>
+  <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="closeLevels">Schließen</button></div>
 </div></div>
 <div id="win"><div class="card">
   <h2 id="winTitle">Licht gefunden</h2>
@@ -276,6 +285,8 @@ function tone(freq, dur, vol = .15, type = "sine", delay = 0) {
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .008); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .05);
 }
+// Sanfte Vibration auf Handys; folgt dem Ton-Schalter
+const buzz = pattern => { if (!muted && navigator.vibrate) try { navigator.vibrate(pattern); } catch {} };
 const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
 const note = (i, base = 523.25) => base * Math.pow(2, PENTA[i % PENTA.length] / 12);
 function bell(f, delay = 0, vol = .12) { tone(f, 1.6, vol, "sine", delay); tone(f * 2.01, .9, vol * .35, "sine", delay); tone(f * 3.98, .4, vol * .12, "sine", delay); }
@@ -333,6 +344,7 @@ function loadDaily() {
     ? `Heute gelöst: ${done.moves} Züge ${starText(done.stars)}. Weitere Versuche zählen nicht.`
     : "Jeden Tag ein neues Rätsel, für alle gleich. Es zählen alle Züge bis zur Lösung, auch über Neustarts hinweg.";
   $("hint").style.opacity = 1;
+  layout();
 }
 
 function loadLevel(n) {
@@ -352,6 +364,7 @@ function loadLevel(n) {
     10: "Neu: Farbtore lassen nur Licht in ihrer Farbe durch. Das Symbol zeigt, welcher Kristall es färben muss. Goldene Tore: nur ungefärbtes Licht.",
   };
   $("hint").textContent = hints[n] || ""; $("hint").style.opacity = hints[n] ? 1 : 0;
+  layout();
 }
 
 const updateUndo = () => { $("undo").disabled = won || !undoStack.length; };
@@ -368,7 +381,7 @@ function flip(c, isUndo = false) {
   const nt = trace(L);
   shown = Math.min(shown, commonDist(T.pts, nt.pts));
   T = nt;
-  tone(330 + Math.random() * 40, .12, .08, "triangle"); tone(990, .05, .03, "sine");
+  tone(330 + Math.random() * 40, .12, .08, "triangle"); tone(990, .05, .03, "sine"); buzz(8);
   if (mode === "level" && L.n <= 2 && moves >= 1) $("hint").style.opacity = .55;
   if (mode === "daily" && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
 }
@@ -379,7 +392,7 @@ function onWin() {
   won = true; updateUndo();
   [0, 2, 4, 7].forEach((i, k) => bell(note(i, 392), k * .11, .1));
   bell(note(5, 392), .55, .08);
-  burst(L.recv._x, L.recv._y, L.recv._hue ?? 45, 70, 1.6);
+  burst(L.recv._x, L.recv._y, L.recv._hue ?? 45, 70, 1.6); buzz([18, 50, 18, 50, 70]);
   let stars, text;
   if (mode === "level") {
     stars = starsFor(moves, L.par);
@@ -436,7 +449,8 @@ function layout() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR;
   if (!L) return;
-  const top = W <= 560 ? 96 : 70, bottom = 60, avail = Math.min(W - 32, H - top - bottom);
+  const top = Math.ceil($("hud").getBoundingClientRect().bottom) + 6,
+    bottom = Math.max(60, ($("hint").textContent ? $("hint").getBoundingClientRect().height : 0) + 34), avail = Math.min(W - 32, H - top - bottom);
   cs = Math.floor(avail / (L.size + .6));
   ox = Math.round((W - cs * L.size) / 2); oy = Math.round(top + (H - top - bottom - cs * L.size) / 2);
   for (let y = 0; y < L.size; y++) for (let x = 0; x < L.size; x++) { const c = L.grid[y][x]; c._x = ox + (x + .5) * cs; c._y = oy + (y + .5) * cs; }
@@ -506,11 +520,11 @@ function frame(now) {
   // Strahl fortschreiten lassen
   shown = Math.min(T.dist, shown + dt * 13);
   const lit = new Set(); for (const e of T.events) if (e.dist <= shown) lit.add(e.cell);
-  for (const c of lit) if (!litPrev.has(c) && c.t === CRYSTAL) { bell(note(L.crystals.indexOf(c) + 2), 0, .09); burst(c._x, c._y, c.hue, 26);
+  for (const c of lit) if (!litPrev.has(c) && c.t === CRYSTAL) { bell(note(L.crystals.indexOf(c) + 2), 0, .09); burst(c._x, c._y, c.hue, 26); buzz(14);
     say(`Kristall leuchtet: ${L.crystals.filter(k => lit.has(k)).length} von ${L.crystals.length}`); }
   litPrev = lit;
   if (!won && shown >= T.dist && isSolved(L, T)) onWin();
-  if (T.blocked && shown >= T.dist && !T.signaled) { T.signaled = true; tone(146, .35, .07, "sine"); tone(110, .45, .05, "triangle"); say("Ein Farbtor blockiert das Licht."); }
+  if (T.blocked && shown >= T.dist && !T.signaled) { T.signaled = true; tone(146, .35, .07, "sine"); tone(110, .45, .05, "triangle"); buzz(30); say("Ein Farbtor blockiert das Licht."); }
   const secs = beamSections(); const finalHue = secs[secs.length - 1].hue;
   L.recv._hue = finalHue;
 
@@ -716,6 +730,13 @@ $("mute").style.opacity = muted ? .4 : 1;
 addEventListener("hashchange", () => { if (location.hash === "#heute" && mode !== "daily") loadDaily(); });
 // Tab offen über Mitternacht: Badge aktualisieren, damit das neue Rätsel auffällt
 setInterval(updateDailyBadge, 60000);
+
+// Offline-Fähigkeit und "Als App installieren"
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+let installPrompt = null;
+addEventListener("beforeinstallprompt", ev => { ev.preventDefault(); installPrompt = ev; $("install").hidden = false; });
+addEventListener("appinstalled", () => { installPrompt = null; $("install").hidden = true; });
+$("install").onclick = async () => { if (!installPrompt) return; installPrompt.prompt(); await installPrompt.userChoice; installPrompt = null; $("install").hidden = true; };
 
 layout();
 if (location.hash === "#heute" || (save.mode === "daily" && !location.hash)) loadDaily(); else loadLevel(save.current || 1);
