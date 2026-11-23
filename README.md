@@ -5,8 +5,10 @@
 Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strahl durch alle Kristalle in die Linse lenken.
 
 **Spielen:** https://christophrus.github.io/lichtweg/ · **Tagesrätsel:** https://christophrus.github.io/lichtweg/#heute
+(ein bestimmter Tag: `#tag=JJJJ-MM-TT`, z. B. [#tag=2026-11-23](https://christophrus.github.io/lichtweg/#tag=2026-11-23) für Rätsel #1)
 
-- **Steuerung:** Klick/Tippen dreht einen Spiegel · `Z` / ↶ Rückgängig · `R` Neustart · `T` Tagesrätsel · `M` Ton · `H` / ? Tipp.
+- **Steuerung:** Klick/Tippen dreht einen Spiegel · `Z` / ↶ Rückgängig · `R` Neustart · `T` Tagesrätsel · `M` Ton · `H` (Knopf ?) Tipp · `Esc` schließt Dialoge.
+  `Z` geht auch als `Backspace` oder `Strg+Z`; `Enter` dreht wie die Leertaste und führt nach dem Lösen weiter.
   Ein Klick auf den Titel oder `L` öffnet die Levelübersicht. `N`/`P` wechseln zum nächsten oder vorherigen Level.
 - **Nur mit Tastatur:** Pfeiltasten springen von Spiegel zu Spiegel, die Leertaste dreht ihn. Ein Screenreader sagt an, welches Teil gewählt ist,
   wie es steht und woher das Licht kommt und wohin es geht. `B` beschreibt das ganze Brett: Quelle, Kristalle, Tore,
@@ -41,8 +43,8 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 - **Portale** (ab Level 35): Licht, das in ein Portal fällt, kommt am Partner in derselben Richtung wieder heraus.
   Punkte unter dem Ring zeigen, welche Portale zusammengehören. Der Generator legt dafür einen Umweg mit neuen Spiegeln
   an, der wieder zum Lösungsweg zurückführt.
-- **Als App:** Lichtweg lässt sich auf dem Handy auf den Homescreen legen („Zum Startbildschirm“ bzw. „Als App
-  installieren“ in der Levelübersicht) und läuft danach auch offline. Auf dem Handy vibriert es leicht, der ♪-Schalter
+- **Als App:** Lichtweg lässt sich auf dem Handy auf den Homescreen legen (im Browsermenü „Zum Startbildschirm“; wo der
+  Browser es anbietet, erscheint in der Levelübersicht auch „Als App installieren“) und läuft danach auch offline. Auf dem Handy vibriert es leicht, der ♪-Schalter
   schaltet Ton und Vibration zusammen. Den Klangteppich allein schaltet man in der Levelübersicht aus.
 - **Atmosphäre:** Unter den Glocken liegt ein leiser Klangteppich. Jeder leuchtende Kristall bringt eine eigene Stimme
   dazu. Der Himmel folgt der Uhrzeit: Nacht, Morgenrot, Tag und Abendrot.
