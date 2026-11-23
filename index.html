@@ -60,9 +60,11 @@
   .card .ctrl.minor { margin-top:10px; } .card .ctrl.minor button { font-size:13px; padding:5px 10px; opacity:.8; }
   #cal { display:grid; grid-template-columns:repeat(14, 1fr); gap:4px; width:min(420px, 78vw); margin:0 auto 14px; }
   #cal:empty { display:none; }
-  #cal i { aspect-ratio:1; border-radius:4px; background:rgba(255,255,255,.06); }
-  #cal i.s1 { background:rgba(255,210,122,.28); } #cal i.s2 { background:rgba(255,210,122,.55); } #cal i.s3 { background:rgba(255,210,122,.95); }
-  #cal i.today { outline:1px solid rgba(255,210,122,.8); outline-offset:1px; }
+  #cal > * { aspect-ratio:1; border-radius:4px; background:rgba(255,255,255,.06); padding:0; border:0; min-width:0; }
+  #cal > i { opacity:.4; }
+  #cal > button:hover { background:rgba(255,255,255,.2); }
+  #cal .s1 { background:rgba(255,210,122,.28); } #cal .s2 { background:rgba(255,210,122,.55); } #cal .s3 { background:rgba(255,210,122,.95); }
+  #cal .today { outline:1px solid rgba(255,210,122,.8); outline-offset:1px; }
   .primary { background:rgba(255,210,122,.18); border-color:rgba(255,210,122,.5); }
   #daily { position:relative; }
   #daily.active { background:rgba(255,210,122,.22); border-color:rgba(255,210,122,.6); color:var(--gold); }
@@ -142,7 +144,7 @@
   <h2 id="levelsTitle">Level</h2>
   <p id="levelsInfo"></p>
   <div id="levelGrid"></div>
-  <div id="cal" aria-hidden="true"></div>
+  <div id="cal" role="group" aria-label="Tagesrätsel der letzten vier Wochen"></div>
   <div class="ctrl"><button id="install" class="primary" hidden>Als App installieren</button><button id="droneBtn" title="Leiser Klangteppich unter den Glocken">Klangteppich: an</button><button id="rand">Zufallslevel</button><button id="build">Selbst bauen</button><button id="langBtn" lang="en">English</button><button id="closeLevels">Schließen</button></div>
   <div class="ctrl minor"><button id="backup">Spielstand sichern</button><button id="restore">Spielstand laden</button><button id="feedback" title="Öffnet ein GitHub-Issue mit dem aktuellen Level">Rückmeldung</button></div>
 </div></div>
@@ -681,14 +683,29 @@ function startPlay(level, startMoves = 0) {
   updateDailyBadge(); layout();
 }
 
-function loadDaily() {
+// Archiv: vergangene Tagesrätsel nachholen. Sie erscheinen im Kalender, ändern aber weder Serie noch heutigen Stand.
+const isPastDay = t => dayNumber(t) >= 1 && dayKey(t) < dayKey(dayOf(new Date()));
+function parseDayHash(h) {
+  const m = /^#tag=(\d{4})-(\d{2})-(\d{2})$/.exec(h || ""); if (!m) return null;
+  const t = { y: +m[1], m: +m[2], d: +m[3] };
+  return dayKey(shiftDay(t, 0)) === dayKey(t) && isPastDay(t) ? t : null;   // echtes Datum, nicht in der Zukunft
+}
+function loadDaily(past) {
+  if (past && !isPastDay(past)) past = null;
   mode = "daily";
-  const t = dayOf(new Date()), key = dayKey(t), done = save.daily.results[key];
-  const lv = dailyLevel(t); lv.day = key; lv.num = dayNumber(t);
+  const t = past || dayOf(new Date()), key = dayKey(t), done = save.daily.results[key];
+  const lv = dailyLevel(t); lv.day = key; lv.num = dayNumber(t); lv.archive = !!past; lv.date = t;
   const pr = save.daily.progress;
-  startPlay(lv, !done && pr && pr.day === key ? pr.moves : 0);   // Neustart setzt die Züge nicht zurück
-  save.mode = "daily"; persist(); setHash("#heute");
+  startPlay(lv, !past && !done && pr && pr.day === key ? pr.moves : 0);   // Neustart setzt die Züge nicht zurück
+  save.mode = "daily"; persist(); setHash(past ? "#tag=" + key : "#heute");
   $("lvl").textContent = tx(`Tagesrätsel #${lv.num} · ${t.d}.${t.m}.`, `Daily #${lv.num} · ${t.m}/${t.d}`);
+  if (past) {
+    $("prev").disabled = $("next").disabled = true; $("daily").classList.remove("active");
+    $("hint").textContent = done
+      ? tx(`Schon gelöst: ${done.moves} ${mv(done.moves)} ${starText(done.stars)}. Weitere Versuche zählen nicht.`, `Already solved: ${done.moves} ${mv(done.moves)} ${starText(done.stars)}. Further tries don't count.`)
+      : tx(`Nachgeholt vom ${t.d}.${t.m}. Es zählt für den Kalender, nicht für die Serie.`, `Catching up on ${t.m}/${t.d}. It counts for the calendar, not for the streak.`);
+    $("hint").style.opacity = 1; layout(); return;
+  }
   $("prev").disabled = $("next").disabled = true;
   $("daily").classList.add("active");
   $("hint").textContent = done
@@ -784,7 +801,7 @@ function flip(c, isUndo = false) {
   tone(330 + Math.random() * 40, .12, .08, "triangle"); tone(990, .05, .03, "sine"); buzz(8);
   if (mode === "level" && L.n <= 2 && moves >= 1) $("hint").style.opacity = .55;
   if (cursorOn && cursor && cursor.x === c.x && cursor.y === c.y) say(describeCell(c));
-  if (mode === "daily" && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
+  if (mode === "daily" && !L.archive && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
 }
 
 // Tipp: zeigt das erste Teil, an dem das Licht vom Lösungsweg abkommt. Kostet einen Zug.
@@ -801,7 +818,7 @@ function showTip() {
   if (!pick) return;
   tipCell = pick; tipUntil = performance.now() + 2800;
   moves++; $("moves").textContent = moves;
-  if (mode === "daily" && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
+  if (mode === "daily" && !L.archive && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
   say(tx(`Tipp: Das Teil in Spalte ${pick.x + 1}, Reihe ${pick.y + 1} steht falsch. Das kostet einen Zug.`, `Hint: the piece in column ${pick.x + 1}, row ${pick.y + 1} is turned wrong. That costs one move.`));
   tone(660, .2, .06); tone(880, .3, .05, "sine", .12);
 }
@@ -834,7 +851,9 @@ function onWin() {
   } else {
     let r = save.daily.results[L.day];
     const first = !r;
-    if (first) {   // nur der erste Lösungsweg des Tages zählt
+    if (first && L.archive) {   // nachgeholt: in den Kalender, Serie und heutiger Stand bleiben
+      r = save.daily.results[L.day] = { moves, par: L.par, stars: starsFor(moves, L.par), late: true }; persist();
+    } else if (first) {   // nur der erste Lösungsweg des Tages zählt
       r = save.daily.results[L.day] = { moves, par: L.par, stars: starsFor(moves, L.par) };
       const [y, m, d] = L.day.split("-").map(Number);
       save.daily.streak = save.daily.last === dayKey(shiftDay({ y, m, d }, -1)) ? save.daily.streak + 1 : 1;
@@ -843,7 +862,9 @@ function onWin() {
     stars = r.stars;
     const now = new Date(), mins = Math.ceil((new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now) / 6e4);
     $("winTitle").textContent = tx(`Tagesrätsel #${L.num}`, `Daily #${L.num}`);
-    text = tx(`${r.moves} ${mv(r.moves)} · Ziel ${r.par} · Serie: ${save.daily.streak} ${days(save.daily.streak)}`, `${r.moves} ${mv(r.moves)} · target ${r.par} · streak: ${save.daily.streak} ${days(save.daily.streak)}`)
+    if (L.archive) text = tx(`${r.moves} ${mv(r.moves)} · Ziel ${r.par}`, `${r.moves} ${mv(r.moves)} · target ${r.par}`)
+      + tx("<small>Nachgeholt – zählt für den Kalender, nicht für die Serie.</small>", "<small>Caught up – counts for the calendar, not the streak.</small>");
+    else text = tx(`${r.moves} ${mv(r.moves)} · Ziel ${r.par} · Serie: ${save.daily.streak} ${days(save.daily.streak)}`, `${r.moves} ${mv(r.moves)} · target ${r.par} · streak: ${save.daily.streak} ${days(save.daily.streak)}`)
       + (first ? "" : tx(`<small>Diesmal ${moves} ${mv(moves)} – gewertet bleibt dein erster Versuch.</small>`, `<small>This time ${moves} ${mv(moves)} – your first try is the one that counts.</small>`))
       + tx(`<small>Nächstes Rätsel in ${Math.floor(mins / 60)} h ${mins % 60} min</small>`, `<small>Next puzzle in ${Math.floor(mins / 60)} h ${mins % 60} min</small>`);
     $("share").hidden = false; $("share").textContent = tx("Teilen", "Share"); $("go").textContent = tx("Zu den Leveln", "To the levels");
@@ -1467,7 +1488,7 @@ function cellAt(ev) {
 cv.addEventListener("pointermove", ev => { hover = cellAt(ev); cv.style.cursor = rotatable(hover) && !won ? "pointer" : "default"; });
 cv.addEventListener("pointerdown", ev => { audio(); cursorOn = false; if (mode === "edit") editAt(cellAt(ev)); else flip(cellAt(ev)); });
 cv.addEventListener("pointermove", () => { if (mode === "edit") cv.style.cursor = hover ? "pointer" : "default"; });
-const restart = () => mode === "daily" ? loadDaily() : mode === "custom" ? loadCustom(customCode, customFromEditor) : mode === "edit" ? null
+const restart = () => mode === "daily" ? loadDaily(L.archive ? L.date : null) : mode === "custom" ? loadCustom(customCode, customFromEditor) : mode === "edit" ? null
   : mode === "seed" ? loadSeed(L.n, L.seed) : loadLevel(L.n);
 const proceed = () => mode === "daily" ? loadLevel(save.current || 1) : mode === "seed" ? seedLevel()
   : mode === "custom" ? (customFromEditor ? openEditor() : loadLevel(save.current || 1)) : loadLevel(L.n + 1);
@@ -1561,12 +1582,15 @@ function openLevels() {
   $("levelsInfo").innerHTML = tx(`${save.unlocked - 1} gelöst · ${sum} von ${(save.unlocked - 1) * 3} Sternen · ${perfect} perfekt`, `${save.unlocked - 1} solved · ${sum} of ${(save.unlocked - 1) * 3} stars · ${perfect} perfect`)
     + extra.map(t => `<small>${t}</small>`).join("");
   const cal = $("cal"); cal.innerHTML = "";
-  if (ds.solved) {
-    const today = dayOf(new Date());
+  const today = dayOf(new Date());
+  if (ds.solved || dayNumber(today) > 1) {
     for (let i = 27; i >= 0; i--) {
-      const d = shiftDay(today, -i), r = save.daily.results[dayKey(d)], e = document.createElement("i");
+      const d = shiftDay(today, -i), r = save.daily.results[dayKey(d)], open = dayNumber(d) >= 1;
+      const e = document.createElement(open ? "button" : "i");
       e.className = (r ? "s" + r.stars : "") + (i === 0 ? " today" : "");
-      e.title = `${tx(`${d.d}.${d.m}.`, `${d.m}/${d.d}`)}: ${r ? starText(r.stars) : "–"}`;
+      const label = `${tx(`${d.d}.${d.m}.`, `${d.m}/${d.d}`)}: ${r ? starText(r.stars) : tx("offen", "open")}`;
+      e.title = label;
+      if (open) { e.setAttribute("aria-label", tx(`Tagesrätsel ${label}`, `Daily ${label}`)); e.onclick = () => { closeLevels(); loadDaily(i ? d : null); }; }
       cal.append(e);
     }
   }
@@ -1580,6 +1604,7 @@ function dailyStats() {
   const keys = Object.keys(save.daily.results).sort();
   let best = 0, run = 0, prev = null;
   for (const k of keys) {
+    if (save.daily.results[k].late) { run = 0; prev = null; continue; }   // nachgeholt zählt nicht zur Serie
     run = prev && dayKey(shiftDay(prev, 1)) === k ? run + 1 : 1; best = Math.max(best, run);
     const [y, m, d] = k.split("-").map(Number); prev = { y, m, d };
   }
@@ -1656,7 +1681,8 @@ $("mute").onclick = toggleMute;
 $("mute").style.opacity = muted ? .4 : 1;
 addEventListener("hashchange", () => {
   const h = location.hash;
-  if (h === "#heute" && mode !== "daily") loadDaily();
+  if (h === "#heute" && (mode !== "daily" || L.archive)) loadDaily();
+  else if (parseDayHash(h) && (mode !== "daily" || L.day !== h.slice(5))) loadDaily(parseDayHash(h));
   else if (h === "#bauen" && mode !== "edit") openEditor();
   else if (h.startsWith("#l=") && (mode !== "custom" || h.slice(3) !== customCode)) loadCustom(h.slice(3));
   else if (parseSeed(h) && (mode !== "seed" || h !== seedHash(L.n, L.seed))) loadSeed(...parseSeed(h));
@@ -1681,6 +1707,7 @@ if (EN) {
   set("install", "Install as app"); set("droneBtn", null, "Soft drone under the bells"); set("rand", "Random level");
   set("build", "Build your own"); set("closeLevels", "Close"); set("backup", "Back up progress"); set("restore", "Restore progress");
   set("feedback", "Feedback", "Opens a GitHub issue with the current level");
+  $("cal").setAttribute("aria-label", "Daily puzzles of the last four weeks");
   set("qrTitle", "Scan to play"); set("qrClose", "Close"); $("qrCanvas").setAttribute("aria-label", "QR code");
   set("qrBtn", null, "Show as QR code"); set("eqr", null, "Show as QR code");
   set("shot", "Picture"); $("shot").title = "Share a picture of the solved board";
@@ -1719,6 +1746,7 @@ layout();
 if (location.hash.startsWith("#l=")) loadCustom(location.hash.slice(3));
 else if (parseSeed(location.hash)) loadSeed(...parseSeed(location.hash));
 else if (location.hash.startsWith("#z=")) brokenLink(true);
+else if (parseDayHash(location.hash)) loadDaily(parseDayHash(location.hash));
 else if (location.hash === "#bauen") openEditor();
 else if (location.hash === "#heute" || (save.mode === "daily" && !location.hash)) loadDaily(); else loadLevel(save.current || 1);
 requestAnimationFrame(frame);

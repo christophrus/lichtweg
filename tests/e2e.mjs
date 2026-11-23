@@ -147,6 +147,41 @@ if (engine === "chromium") {
   await ctx.close();
 }
 
+// 9. Archiv: Ein verpasstes Tagesrätsel nachholen, ohne Serie und heutigen Stand anzufassen (Datum: 5.12.2026)
+{
+  const p = await page("de", () => {
+    const T = new Date(2026, 11, 5, 12).getTime(), D = Date;
+    globalThis.Date = class extends D { constructor(...a) { super(...(a.length ? a : [T])); } static now() { return T; } };
+    if (!sessionStorage.getItem("done")) { sessionStorage.setItem("done", 1);
+      localStorage.setItem("lichtweg", JSON.stringify({ unlocked: 3, current: 1, stars: {}, mode: "level", daily: {
+        results: { "2026-12-03": { moves: 6, par: 6, stars: 3 }, "2026-12-04": { moves: 7, par: 6, stars: 2 } },
+        streak: 2, last: "2026-12-04", progress: { day: "2026-12-05", moves: 3 } } })); }
+  });
+  await p.goto(base);
+  await p.waitForFunction(() => typeof L !== "undefined" && L);
+  await p.keyboard.press("l");
+  await p.waitForSelector("#levels.show");
+  const cal = await p.evaluate(() => [$("cal").querySelectorAll("button").length, $("cal").querySelectorAll("i").length]);
+  check("Kalender: Tage seit #1 sind Knöpfe", cal[0] === 13 && cal[1] === 15, cal.join("/"));
+  await p.click('#cal button[aria-label*="30.11."]');
+  const st = await p.evaluate(() => [mode, L.archive, location.hash, L.day]);
+  check("Archivtag öffnet sich", st[0] === "daily" && st[1] === true && st[2] === "#tag=2026-11-30", st.join(" "));
+  await p.evaluate(() => { for (const c of L.grid.flat()) { let g = 0;
+    while (rotatable(c) && g++ < 4 && (c.t === PRISM ? c.r !== c.sol : c.solO !== undefined && c.o !== c.solO)) flip(c); } });
+  await p.waitForSelector("#win.show", { timeout: 8000 });
+  const d = await p.evaluate(() => save.daily);
+  check("Nachgeholt steht im Kalender", d.results["2026-11-30"]?.late === true);
+  check("Serie und heutiger Stand bleiben", d.streak === 2 && d.last === "2026-12-04" && d.progress?.moves === 3, JSON.stringify([d.streak, d.last, d.progress]));
+  await p.evaluate(() => { location.hash = "#heute"; });
+  await p.waitForFunction(() => !L.archive && L.day === "2026-12-05");
+  check("Zurück zu heute mit gespeicherten Zügen", await p.evaluate(() => moves === 3));
+  await p.evaluate(() => { location.hash = "#tag=2026-12-07"; });
+  await p.waitForTimeout(200);
+  check("Zukunft lässt sich nicht öffnen", await p.evaluate(() => L.day === "2026-12-05" && !L.archive));
+  check("Archiv ohne Fehler", !p.errors.length, p.errors.join(" | "));
+  await p.context().close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen.` : "\nAlles in Ordnung.");
 process.exit(failed ? 1 : 0);

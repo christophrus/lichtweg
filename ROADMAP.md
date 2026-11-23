@@ -66,6 +66,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   mit echtem Tippen. Alle drei grün.
 - **v26.6 – Zoomen erlaubt:** Die Seite sperrte das Zoomen mit zwei Fingern (WCAG 1.4.4). Dazu Manifest-`id`,
   kanonischer Link, neuer Cache-Name, damit installierte Apps das neue Manifest bekommen.
+- **v27 – Tagesrätsel-Archiv:** Verpasste Tage sind im Kalender antippbar (ab #1 bis gestern) und per
+  `#tag=JJJJ-MM-TT` verlinkbar. Nachgeholte Rätsel füllen den Kalender, zählen aber nicht zur Serie und lassen den
+  heutigen Spielstand in Ruhe. Browser-Test mit festgesetztem Datum.
 
 ## Als Nächstes
 

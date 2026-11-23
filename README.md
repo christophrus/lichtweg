@@ -47,7 +47,8 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   dazu. Der Himmel folgt der Uhrzeit: Nacht, Morgenrot, Tag und Abendrot.
 - **Bild teilen:** Nach dem Lösen macht „Bild“ ein Foto vom gelösten Brett mit Ergebniszeile, zum Teilen oder Speichern.
 - **Spielstand sichern:** In der Levelübersicht gibt es einen Code (`LW1:…`), mit dem sich der Fortschritt auf ein
-  anderes Gerät mitnehmen lässt. Darüber zeigt ein Kalender die Tagesrätsel der letzten vier Wochen.
+  anderes Gerät mitnehmen lässt. Darüber zeigt ein Kalender die Tagesrätsel der letzten vier Wochen; verpasste Tage lassen sich dort
+  nachholen (zählt für den Kalender, nicht für die Serie).
 - **Ruhige Darstellung:** Wer im System „Bewegung reduzieren“ eingestellt hat, bekommt kein Flackern, Funkeln oder Kreiseln.
 - **Sprache:** Deutsch oder Englisch, je nach Browser. Umschalten in der Levelübersicht.
 - Fortschritt, Sterne und Serie liegen im `localStorage` des Browsers. Die Levelübersicht zeigt eine kleine Statistik
