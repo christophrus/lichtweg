@@ -99,6 +99,9 @@
     #stats { order:3; width:100%; text-align:left; min-width:0; }
     .ctrl { gap:5px; }
     button { padding:7px 9px; }
+    /* Spielknöpfe in eigener Zeile, gleichmäßig verteilt: Tippfläche 44 px hoch statt 25 px schmal */
+    #hud > .ctrl { order:2; flex:1 1 100%; justify-content:space-between; }
+    #hud > .ctrl button { flex:1 1 0; max-width:60px; min-height:44px; padding:6px 0; }
   }
 </style>
 </head>

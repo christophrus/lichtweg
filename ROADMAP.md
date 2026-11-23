@@ -50,6 +50,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   geglättet (Unlesbares bleibt unter `lichtweg-kaputt` erhalten), gesperrter oder voller Speicher wirft nicht mehr.
 - **v25.1 – Links gefuzzt:** 27 kaputte und böswillige Links (HTML im Titel, abgeschnittene Codes, Riesenzahlen)
   ohne Fehler. Kaputte Zufallslevel-Links melden sich jetzt auch, Screenreader hören die Meldung.
+- **v25.2 – Größere Knöpfe am Handy:** Die Spielknöpfe stehen auf schmalen Bildschirmen in eigener Zeile,
+  mindestens 38×44 statt 25×36 px. Das Brett bleibt gleich groß (geprüft bei 375×812, 375×667, 320×568).
 
 ## Als Nächstes
 
