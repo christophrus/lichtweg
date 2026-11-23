@@ -1,0 +1,16 @@
+# Prüft bei jedem Push, dass alte Level gleich bleiben, alles lösbar ist und Links funktionieren.
+name: Regressionstest
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tests/regress.js
