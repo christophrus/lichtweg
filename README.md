@@ -21,9 +21,12 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 - **Strahlteiler** (ab Level 22): drehbare Glasscheiben, die das Licht durchlassen und zugleich spiegeln. Dann gibt es
   zwei Linsen, und beide müssen leuchten. Auch hier wird der zweite Weg rückwärts gelegt.
 - **Selbst bauen** (Levelübersicht → „Selbst bauen“ oder `#bauen`): Quelle, Linsen, Spiegel, Kristalle, Tore,
-  Teiler und Wände setzen. Nochmal tippen dreht Spiegel, Teiler und Quelle oder wechselt die Farbe von Kristall
-  und Tor. Der Editor zeigt, ob der Strahl schon alles erreicht. „Testen“ verdreht die Spiegel und lässt dich selbst lösen. „Link teilen“
+  Teiler, Portale und Wände setzen. Nochmal tippen dreht Spiegel, Teiler und Quelle, wechselt die Farbe von Kristall
+  und Tor oder das Paar eines Portals. Der Editor zeigt, ob der Strahl schon alles erreicht. „Testen“ verdreht die Spiegel und lässt dich selbst lösen. „Link teilen“
   kopiert einen Link, in dem das ganze Level steckt (`#l=…`). Der Entwurf bleibt im Browser gespeichert.
+- **Portale** (ab Level 35): Licht, das in ein Portal fällt, kommt am Partner in derselben Richtung wieder heraus.
+  Punkte unter dem Ring zeigen, welche Portale zusammengehören. Der Generator legt dafür einen Umweg mit neuen Spiegeln
+  an, der wieder zum Lösungsweg zurückführt.
 - **Als App:** Lichtweg lässt sich auf dem Handy auf den Homescreen legen („Zum Startbildschirm“ bzw. „Als App
   installieren“ in der Levelübersicht) und läuft danach auch offline. Auf dem Handy vibriert es leicht, der ♪-Schalter
   schaltet Ton und Vibration zusammen.

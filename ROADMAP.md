@@ -20,12 +20,13 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   komprimiert in der URL (`#l=…`), ein Server ist nicht nötig. Vor dem Teilen werden die Spiegel verdreht.
 - **v8 – Atmosphäre:** ein leiser Klangteppich, in dem jeder leuchtende Kristall eine eigene Stimme bekommt, und ein
   Himmel, der der Uhrzeit folgt (Nacht, Morgenrot, Tag, Abendrot).
+- **v9 – Portale** (ab Level 35, wo Platz ist): Das Licht springt vom einen Portal zum anderen und kommt über einen
+  Umweg mit neuen Spiegeln zum Lösungsweg zurück. Lösungsweg und Level vor 35 bleiben unverändert. Auch im Editor.
 
 ## Als Nächstes
 
 ### 1. Neue Mechaniken (das Herzstück)
 Jede Mechanik wird im Generator rückwärts gebaut und ist damit automatisch lösbar. Sie wird mit einem kurzen Hinweis-Level eingeführt.
-- **Portale:** ein Paar, das den Strahl versetzt weiterführt.
 - **Drehprismen mit vier Stellungen** statt zwei, für spätere Level.
 
 ### 2. Selbst bauen und teilen

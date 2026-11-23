@@ -129,10 +129,11 @@
 const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];          // 0 rechts, 1 unten, 2 links, 3 oben
 const SLASH = [3, 2, 1, 0];                              // Spiegel "/"
 const BACK  = [1, 0, 3, 2];                              // Spiegel "\"
-const EMPTY = 0, WALL = 1, MIRROR = 2, CRYSTAL = 3, SRC = 4, RECV = 5, GATE = 6, SPLIT = 7;
+const EMPTY = 0, WALL = 1, MIRROR = 2, CRYSTAL = 3, SRC = 4, RECV = 5, GATE = 6, SPLIT = 7, PORTAL = 8;
 const GOLD = 42;                                         // Farbton des ungefärbten Lichts
 const GATE_LEVEL = 10;                                   // ab hier gibt es Farbtore
 const SPLIT_LEVEL = 22;                                  // ab hier gibt es Strahlteiler
+const PORTAL_LEVEL = 35;                                 // ab hier gibt es Portale (dort, wo ein Umweg Platz hat)
 const HUES = [188, 312, 140, 265, 28];                   // Kristallfarben
 
 function rng(seed) {
@@ -158,7 +159,7 @@ function params(n) {
 // ---------- Levelgenerator: erst den Lösungsweg legen, dann verwürfeln ----------
 // n bestimmt die Schwierigkeit, seed das konkrete Level (Standard: aus n abgeleitet).
 function generate(n, seed = n * 1000003, opts = {}) {
-  const gates = opts.gates ?? n >= GATE_LEVEL, splitters = opts.splitters ?? n >= SPLIT_LEVEL;
+  const gates = opts.gates ?? n >= GATE_LEVEL, splitters = opts.splitters ?? n >= SPLIT_LEVEL, portals = opts.portals ?? n >= PORTAL_LEVEL;
   const p = params(n), S = p.size;
   for (let attempt = 0; attempt < 5000; attempt++) {
     const R = rng(seed + attempt * 7919 + 17);
@@ -221,6 +222,7 @@ function generate(n, seed = n * 1000003, opts = {}) {
     for (const row of grid) for (const c of row) if (c.t === MIRROR) { c.ang = c.o === 0 ? -Math.PI / 4 : Math.PI / 4; c.target = c.ang; }
     if (gates) addGates(L, n, seed, straight, visited);
     if (splitters) addSplitter(L, n, seed, straight, mirrors, visited);
+    if (portals) addPortals(L, n, seed, mirrors, visited);
     return L;
   }
   throw new Error("Kein Level erzeugbar");
@@ -296,6 +298,58 @@ function addSplitter(L, n, seed, straight, mirrors, visited) {
   return false;
 }
 
+// Portale: Das erste sitzt auf einem geraden, leeren Feld des Lösungswegs. Das Licht springt zum zweiten, das
+// irgendwo im freien Raum liegt, und kommt über einen Umweg mit 1 oder 3 neuen Spiegeln zurück: Es trifft das
+// nächste Feld des Wegs von der Seite, ein neuer Spiegel lenkt es wieder in die alte Richtung. Übersprungen wird
+// nichts. Der Umweg nutzt Felder abseits des Lösungswegs; Attrappen und Wände dort räumt er weg.
+// Eigener Zufall: der Lösungsweg und alles darauf bleiben, wie sie waren.
+function addPortals(L, n, seed, mirrors, visited) {
+  const R = rng(((seed ^ 0x61c88647) >>> 0) + 3131), S = L.size;
+  const inb = (x, y) => x >= 0 && y >= 0 && x < S && y < S;
+  const turn = new Map(mirrors.map(m => [m.x + m.y * S, m])), path = [];
+  let { x: px, y: py, d: pd } = L.src;
+  for (let i = 0; i < S * S; i++) {
+    px += DX[pd]; py += DY[pd];
+    const c = L.grid[py][px], m = turn.get(px + py * S);
+    path.push({ x: px, y: py, d: pd, c, turn: !!m });
+    if (c === L.recvs[0]) break;
+    if (m) pd = m.o === 0 ? SLASH[pd] : BACK[pd];
+  }
+  const cand = [];
+  for (let i = 0; i + 1 < path.length; i++) { const a = path[i], m = path[i + 1];
+    if (!a.turn && !m.turn && a.c.t === EMPTY && m.c.t === EMPTY) cand.push([a, m]); }
+  const fixed = () => { const f = L.grid.flat().filter(c => c.flipped); f.forEach(c => c.o ^= 1); const ok = isSolved(L, trace(L)); f.forEach(c => c.o ^= 1); return ok; };
+  for (const [a, m] of R.shuffle(cand)) for (let attempt = 0; attempt < 30; attempt++) {
+    const d = a.d, e = R.next() < .5 ? (d + 1) % 4 : (d + 3) % 4;   // so läuft das Licht seitlich in Feld m hinein
+    const want = R.next() < .6 ? 1 : 3, used = new Set(), bends = [];
+    const free = (x, y) => inb(x, y) && !visited.has(x + y * S) && !used.has(x + y * S) && [EMPTY, MIRROR, GATE, WALL].includes(L.grid[y][x].t);
+    let x = m.x, y = m.y, f = e, turns = 0, since = 0, b = null;
+    for (let step = 0; step < S * S && !b; step++) {          // rückwärts gegen die Laufrichtung
+      x -= DX[f]; y -= DY[f];
+      if (!free(x, y)) break;
+      used.add(x + y * S); since++;
+      if (turns < want && (R.next() < .5 || !free(x - DX[f], y - DY[f]))) {
+        const g = turns === want - 1 ? d : R.next() < .5 ? (f + 1) % 4 : (f + 3) % 4;   // die letzte Biegung führt in Richtung d
+        if (free(x - DX[g], y - DY[g])) { bends.push({ x, y, o: SLASH[g] === f ? 0 : 1 }); f = g; turns++; since = 0; continue; }
+      }
+      if (turns === want && since >= 1 && (R.next() < .45 || !free(x - DX[f], y - DY[f]))) b = { x, y };
+    }
+    if (!b || used.size < 4) continue;
+    const keep = [[a.x, a.y], [m.x, m.y], ...[...used].map(k => [k % S, Math.floor(k / S)])].map(([x, y]) => [x, y, L.grid[y][x]]);
+    for (const k of used) L.grid[Math.floor(k / S)][k % S] = { t: EMPTY };          // Attrappen auf dem Umweg weg
+    L.grid[a.y][a.x] = { t: PORTAL, id: 0, x: a.x, y: a.y }; L.grid[b.y][b.x] = { t: PORTAL, id: 0, x: b.x, y: b.y };
+    const rot = [L.grid[m.y][m.x] = { t: MIRROR, o: SLASH[e] === d ? 0 : 1, locked: false, x: m.x, y: m.y },
+      ...bends.map(q => (L.grid[q.y][q.x] = { t: MIRROR, o: q.o, locked: false, x: q.x, y: q.y }))];
+    let added = 0;
+    rot.forEach(c => { if (R.next() < .55) { c.o ^= 1; c.flipped = true; added++; } });
+    if (!added) { rot[0].o ^= 1; rot[0].flipped = true; added++; }
+    for (const c of rot) { c.ang = c.o === 0 ? -Math.PI / 4 : Math.PI / 4; c.target = c.ang; }
+    if (!isSolved(L, trace(L)) && fixed()) { L.par += added; for (const k of used) visited.add(k); return true; }
+    for (const [x, y, c] of keep) L.grid[y][x] = c;
+  }
+  return false;
+}
+
 // ---------- Strahlverfolgung ----------
 // Mehrere Strahlen: ein Strahlteiler lässt das Licht durch und startet zugleich einen gespiegelten Strahl.
 // Jeder Strahl kennt seinen Start (Entfernung von der Quelle), damit alle gemeinsam wachsen.
@@ -304,6 +358,9 @@ function trace(L) {
   if (!L.src) return { beams: [], events: [], blocked: [], hits: new Set(), dist: 0 };
   const S = L.size, seen = new Set(), beams = [], events = [], blocked = [], hits = new Set();
   const queue = [{ x: L.src.x, y: L.src.y, d: L.src.d, hue: GOLD, start: 0 }];
+  const ports = new Map(), byId = {};   // Portale gehören paarweise zusammen (gleiche Nummer)
+  for (const row of L.grid) for (const c of row) if (c.t === PORTAL) (byId[c.id] ||= []).push(c);
+  for (const k in byId) if (byId[k].length === 2) { ports.set(byId[k][0], byId[k][1]); ports.set(byId[k][1], byId[k][0]); }
   while (queue.length && beams.length < 32) {
     const b = queue.shift();
     let { x, y, d, hue } = b, px = x + .5, py = y + .5, dist = b.start;
@@ -323,6 +380,11 @@ function trace(L) {
       else if (c.t === CRYSTAL) { hue = c.hue; bev.push({ dist, cell: c, hue }); }
       else if (c.t === GATE) bev.push({ dist, cell: c, hue });
       else if (c.t === RECV) { hits.add(c); bev.push({ dist, cell: c, hue }); break; }
+      else if (c.t === PORTAL) {          // Sprung zum Partner, dort geht es in derselben Richtung weiter
+        bev.push({ dist, cell: c, hue }); const o = ports.get(c);
+        if (o) { bev.push({ dist, cell: o, hue }); queue.push({ x: o.x, y: o.y, d, hue, start: dist }); }
+        break;
+      }
     }
     const last = pts[pts.length - 1];
     if (last.x !== px || last.y !== py) pts.push({ x: px, y: py });
@@ -452,7 +514,7 @@ function setHash(h) { if (location.hash !== h) history.replaceState(null, "", h 
 // Pro Feld ein Byte: Typ (3 Bit) + Parameter (5 Bit). Davor Version, Größe, Ziel.
 function makeCell(t, p, x, y) {
   switch (t) {
-    case WALL: return { t, x, y };
+    case WALL: return p >= 16 ? { t: PORTAL, id: p & 3, x, y } : { t, x, y };
     case MIRROR: return { t, o: p & 1, locked: !!(p & 2), x, y };
     case SPLIT: return { t, o: p & 1, x, y };
     case CRYSTAL: return { t, shape: p % 4, hue: HUES[p % 4], x, y };
@@ -468,6 +530,7 @@ function cellParam(c) {
   if (c.t === CRYSTAL) return c.shape;
   if (c.t === GATE) return c.shape < 0 ? 0 : c.shape + 1;
   if (c.t === SRC) return c.d;
+  if (c.t === PORTAL) return 16 + c.id;
   return 0;
 }
 function buildLevel(size, grid, par, loose = false) {
@@ -485,7 +548,7 @@ function buildLevel(size, grid, par, loose = false) {
 }
 function encodeLevel(L) {
   const bytes = [1, L.size, L.par];
-  for (const row of L.grid) for (const c of row) bytes.push(c.t | (cellParam(c) << 3));
+  for (const row of L.grid) for (const c of row) bytes.push((c.t === PORTAL ? WALL : c.t) | (cellParam(c) << 3));
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 function decodeLevel(code, loose = false) {
@@ -538,6 +601,7 @@ function loadLevel(n) {
     3: "Verdreht? ↶ oder Z nimmt den letzten Zug zurück.",
     4: "Spiegel mit Nieten sind festgeschraubt.",
     7: "Nicht jeder Spiegel liegt auf dem Weg.",
+    35: "Neu: Portale. Licht, das in ein Portal fällt, kommt am Partnerportal in derselben Richtung wieder heraus.",
     22: "Neu: Strahlteiler aus Glas lassen das Licht durch und spiegeln es zugleich. Jede Linse muss leuchten.",
     10: "Neu: Farbtore lassen nur Licht in ihrer Farbe durch. Das Symbol zeigt, welcher Kristall es färben muss. Goldene Tore: nur ungefärbtes Licht.",
   };
@@ -643,7 +707,7 @@ async function shareDaily() {
 // ---------- Editor ----------
 let tool = "mirror", customCode = null, customFromEditor = false;
 const TOOLS = [["src", "Quelle"], ["recv", "Linse"], ["mirror", "Spiegel"], ["fixed", "Fester Spiegel"], ["split", "Teiler"],
-  ["crystal", "Kristall"], ["gate", "Tor"], ["wall", "Wand"], ["erase", "Radierer"]];
+  ["crystal", "Kristall"], ["gate", "Tor"], ["portal", "Portal"], ["wall", "Wand"], ["erase", "Radierer"]];
 const EDIT_DEFAULT = (() => {   // 7×7: Quelle links, Linse rechts, dazwischen freie Bahn
   const size = 7, g = Array.from({ length: size }, (_, y) => Array.from({ length: size }, (_, x) => makeCell(EMPTY, 0, x, y)));
   g[3][0] = makeCell(SRC, 0, 0, 3); g[3][6] = makeCell(RECV, 0, 6, 3);
@@ -651,8 +715,11 @@ const EDIT_DEFAULT = (() => {   // 7×7: Quelle links, Linse rechts, dazwischen 
 })();
 const editMsg = (m, warn = false) => { $("toolmsg").textContent = m; $("toolmsg").style.color = warn ? "#ffb38a" : ""; };
 function saveDraft() { localStorage.setItem("lichtweg-editor", encodeLevel(L)); }
+const portalTrouble = lv => { const cnt = [0, 0, 0, 0]; for (const c of lv.grid.flat()) if (c.t === PORTAL) cnt[c.id]++;
+  const k = cnt.findIndex(v => v && v !== 2); return k < 0 ? null : `Portalpaar ${k + 1} hat ${cnt[k] === 1 ? "erst ein Portal" : cnt[k] + " Portale"}. Es braucht genau zwei.`; };
 function editStatus() {
   if (!L.src) return editMsg("Setze eine Lichtquelle (mehrmals tippen dreht sie).");
+  const pt = portalTrouble(L); if (pt) return editMsg(pt, true);
   if (!L.recvs.length) return editMsg("Setze mindestens eine Linse.");
   if (isSolved(L, T)) return editMsg("✓ Der Lösungsweg steht. Jetzt testen oder teilen – die Spiegel werden dabei verdreht.");
   editMsg("Baue den Lösungsweg: Das Licht muss durch alle Kristalle in jede Linse. Nochmal tippen dreht oder färbt um.");
@@ -685,6 +752,14 @@ function editAt(c) {
     case "split": t = SPLIT; prm = c.t === SPLIT ? c.o ^ 1 : 0; break;
     case "crystal": t = CRYSTAL; prm = c.t === CRYSTAL ? (c.shape + 1) % 4 : 0; break;
     case "gate": t = GATE; prm = c.t === GATE ? (cellParam(c) + 1) % 5 : 0; break;
+    case "portal": {                    // neues Portal ergänzt ein halbes Paar; nochmal tippen wechselt das Paar
+      t = WALL; const cnt = [0, 0, 0, 0];
+      for (const o of L.grid.flat()) if (o.t === PORTAL && o !== c) cnt[o.id]++;
+      let id = c.t === PORTAL ? (c.id + 1) % 4 : cnt.indexOf(1);
+      if (id < 0) id = cnt.indexOf(0);
+      if (id < 0) return editMsg("Mehr als vier Portalpaare gehen nicht.", true);
+      prm = 16 + id; break;
+    }
     case "src": t = SRC; prm = c.t === SRC ? (c.d + 1) % 4 : 0;
       for (const row of L.grid) for (const o of row) if (o.t === SRC && o !== c) row[o.x] = makeCell(EMPTY, 0, o.x, o.y);
       break;
@@ -707,6 +782,7 @@ function resizeEditor(size) {
 function scrambleForShare() {
   if (!L.src) { editMsg("Es fehlt eine Lichtquelle.", true); return null; }
   if (!L.recvs.length) { editMsg("Es fehlt eine Linse.", true); return null; }
+  const pt = portalTrouble(L); if (pt) { editMsg(pt, true); return null; }
   if (!isSolved(L, trace(L))) { editMsg("Erst muss der Lösungsweg stehen: Licht durch alle Kristalle in jede Linse.", true); return null; }
   const solved = encodeLevel(L);
   for (let a = 0; a < 300; a++) {
@@ -902,6 +978,19 @@ function frame(now) {
       ctx.save(); ctx.translate(cx, cy); ctx.fillStyle = col(open ? .95 : .65, open ? 85 : 68);
       if (c.shape < 0) { ctx.beginPath(); ctx.arc(0, 0, cs * .09, 0, 6.283); } else crystalPath(c.shape, cs * .1);
       ctx.fill(); ctx.restore();
+    } else if (c.t === PORTAL) {
+      const on = lit.has(c), r = cs * .34;
+      const pg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      pg.addColorStop(0, on ? "rgba(240,232,255,.6)" : "rgba(8,6,26,.95)"); pg.addColorStop(.65, on ? "rgba(175,155,255,.3)" : "rgba(70,58,140,.35)"); pg.addColorStop(1, "rgba(120,100,230,0)");
+      ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.fill();
+      ctx.lineWidth = Math.max(1.5, cs * .04); ctx.setLineDash([cs * .13, cs * .07]);
+      for (const [rr, sp, a] of [[.95, .8, on ? .95 : .6], [.58, -1.3, on ? .8 : .4]]) {
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * sp + c.id); ctx.strokeStyle = `rgba(205,195,255,${a})`;
+        ctx.beginPath(); ctx.arc(0, 0, r * rr, 0, 6.283); ctx.stroke(); ctx.restore();
+      }
+      ctx.setLineDash([]);
+      ctx.fillStyle = "rgba(225,215,255,.85)";      // Punkte zeigen, welche Portale zusammengehören
+      for (let k = 0; k <= c.id; k++) { ctx.beginPath(); ctx.arc(cx + (k - c.id / 2) * cs * .11, cy + cs * .43, Math.max(1.2, cs * .03), 0, 6.283); ctx.fill(); }
     } else if (c.t === SRC) {
       const pulse = 1 + .08 * Math.sin(t * 3);
       const sg = ctx.createRadialGradient(cx, cy, 0, cx, cy, cs * .6 * pulse); sg.addColorStop(0, "rgba(255,220,140,.9)"); sg.addColorStop(.35, "rgba(255,190,90,.35)"); sg.addColorStop(1, "rgba(255,190,90,0)");
