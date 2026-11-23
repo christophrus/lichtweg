@@ -1343,7 +1343,15 @@ function sky() {
 }
 // Wer im System "Bewegung reduzieren" eingestellt hat, bekommt ein ruhiges Bild: kein Flackern, Funkeln, Kreiseln, keine Funken.
 const REDUCED = !!globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+// Akku schonen: Volle Bildrate nur, solange sich etwas tut (Eingabe, wachsender Strahl, Funken, Tipp).
+// In Ruhe 20 Bilder pro Sekunde fürs sanfte Funkeln, bei „Bewegung reduzieren“ eines pro Sekunde.
+let lastInput = 0, lastDraw = 0, drawn = 0;
+for (const ev of ["pointerdown", "pointermove", "keydown", "wheel", "resize", "hashchange", "focus"])
+  addEventListener(ev, () => { lastInput = performance.now(); }, { passive: true, capture: true });
+const busy = now => now - lastInput < 4000 || particles.length || (T && shown < T.dist) || now < tipUntil || (L && L.grid.flat().some(c => c.target !== undefined && Math.abs(c.ang - c.target) > .001));
 function frame(now) {
+  if (L && !busy(now) && now - lastDraw < (REDUCED ? 1000 : 50) - 2) return requestAnimationFrame(frame);
+  lastDraw = now; drawn++;
   const dt = Math.min(.05, (now - last) / 1000); last = now; const t = REDUCED ? 0 : now / 1000;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 

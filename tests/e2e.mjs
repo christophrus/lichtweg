@@ -248,6 +248,19 @@ if (engine === "chromium") {
   await p.context().close();
 }
 
+// 10. Akku: In Ruhe zeichnet das Spiel seltener, bei „Bewegung reduzieren“ fast gar nicht, nach Eingabe wieder flüssig
+{
+  const ctx = await browser.newContext({ locale: "de-DE", reducedMotion: "reduce", serviceWorkers: "block" });
+  const p = await ctx.newPage();
+  await p.goto(base);
+  await p.waitForFunction(() => typeof L !== "undefined" && L);
+  await p.waitForFunction(() => !busy(performance.now()), null, { timeout: 20000 });
+  const a = await p.evaluate(() => drawn); await p.waitForTimeout(2000); const idle = (await p.evaluate(() => drawn)) - a;
+  await p.mouse.move(100, 100); const b = await p.evaluate(() => drawn); await p.waitForTimeout(500); const active = (await p.evaluate(() => drawn)) - b;
+  check("Ruhe: höchstens ein Bild pro Sekunde, nach Eingabe flüssig", idle <= 4 && active >= 15, `Ruhe ${idle}, aktiv ${active}`);
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen.` : "\nAlles in Ordnung.");
 process.exit(failed ? 1 : 0);

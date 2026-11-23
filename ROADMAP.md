@@ -97,6 +97,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   zum nächsten offenen Tag, zuletzt zum heutigen Rätsel – statt zurück zu den Leveln.
 - **v28.1 – Nachgeholt sichtbar:** Im Kalender sind nachgeholte Tage schraffiert (und heißen für Screenreader
   „nachgeholt“), damit sie sich von pünktlich gelösten unterscheiden – sie zählen ja nicht zur Serie.
+- **v28.2 – Akku schonen:** Das Spiel zeichnete immer 60 Bilder pro Sekunde, auch in Ruhe. Jetzt volle Bildrate nur
+  bei Eingabe, wachsendem Strahl, drehenden Spiegeln, Funken oder Tipp; sonst 20 Bilder pro Sekunde (−67 %), bei
+  „Bewegung reduzieren“ eines pro Sekunde (−98 %). Browser-Test misst das.
 
 ## Als Nächstes
 
