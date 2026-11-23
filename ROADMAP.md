@@ -32,6 +32,7 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v15 – English:** komplette englische Fassung, je nach Browsersprache, umschaltbar in der Levelübersicht.
 - **v16 – Komfort:** Spielstand als Code sichern und laden, Kalender der Tagesrätsel, Rückgängig im Editor,
   ruhige Darstellung bei „Bewegung reduzieren“.
+- **v17 – Editor mit Tastatur:** Pfeile, Ziffern für Werkzeuge, Leertaste, Entf, mit Ansagen für Screenreader.
 
 ## Als Nächstes
 

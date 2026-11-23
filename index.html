@@ -861,10 +861,23 @@ function openEditor(level) {
   $("toolRow").innerHTML = "";
   for (const [id, label] of TOOLS) {
     const b = document.createElement("button"); b.textContent = label; b.dataset.tool = id; b.className = id === tool ? "sel" : "";
-    b.onclick = () => { tool = id; for (const o of $("toolRow").children) o.classList.toggle("sel", o.dataset.tool === id); };
+    b.onclick = () => selectTool(id);
+    const ti = TOOLS.findIndex(q => q[0] === id); b.title = `${label} (${ti < 10 ? (ti + 1) % 10 : tx("Entf", "Del")})`;
     $("toolRow").append(b);
   }
   editStatus(); layout();
+}
+function selectTool(id) {
+  tool = id; for (const o of $("toolRow").children) o.classList.toggle("sel", o.dataset.tool === id);
+  say(tx("Werkzeug: ", "Tool: ") + TOOLS.find(q => q[0] === id)[1]);
+}
+// Tastatur im Editor: Pfeile wandern Feld für Feld, Leertaste setzt das Werkzeug, Ziffern wählen es, Entf radiert.
+function editCursor(d) {
+  if (!cursorOn || !cursor || cursor.x >= L.size || cursor.y >= L.size) { cursorOn = true; cursor = { x: Math.floor(L.size / 2), y: Math.floor(L.size / 2) }; }
+  else cursor = { x: Math.max(0, Math.min(L.size - 1, cursor.x + DX[d])), y: Math.max(0, Math.min(L.size - 1, cursor.y + DY[d])) };
+  const c = L.grid[cursor.y][cursor.x], names = EN ? ["empty", "wall", "mirror", "crystal", "source", "lens", "gate", "splitter", "portal", "prism"]
+    : ["leer", "Wand", "Spiegel", "Kristall", "Quelle", "Linse", "Tor", "Teiler", "Portal", "Prisma"];
+  say(`${tx("Spalte", "Column")} ${cursor.x + 1}, ${tx("Reihe", "row")} ${cursor.y + 1}: ${names[c.t]}`);
 }
 function editAt(c) {
   if (!c) return;
@@ -1312,7 +1325,13 @@ addEventListener("keydown", ev => {
   if ((ev.ctrlKey || ev.metaKey) && k === "z") { ev.preventDefault(); undo(); return; }
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
   if ($("levels").classList.contains("show")) { if (k === "escape" || k === "l") closeLevels(); return; }
-  if (mode === "edit") { if (k === "z" || k === "backspace") undo(); else if (k === "m") toggleMute(); else if (k === "l") openLevels(); else if (k === "t") loadDaily(); return; }
+  if (mode === "edit") {
+    if (["BUTTON", "SELECT"].includes(ev.target.tagName) && (k === " " || k === "enter" || k in ARROWS)) return;
+    if (k in ARROWS) { ev.preventDefault(); editCursor(ARROWS[k]); return; }
+    if (k === " " || k === "enter") { ev.preventDefault(); if (cursorOn && cursor) editAt(L.grid[cursor.y][cursor.x]); else editCursor(0); return; }
+    if (/^[0-9]$/.test(k)) { const tl = TOOLS[(+k + 9) % 10]; if (tl) selectTool(tl[0]); return; }
+    if (k === "delete" && cursorOn && cursor) { const keep = tool; tool = "erase"; editAt(L.grid[cursor.y][cursor.x]); tool = keep; return; }
+    if (k === "z" || k === "backspace") undo(); else if (k === "m") toggleMute(); else if (k === "l") openLevels(); else if (k === "t") loadDaily(); return; }
   if (ev.target.tagName === "BUTTON" && (k === " " || k === "enter")) return;   // fokussierter Button bedient sich selbst
   if (k in ARROWS) { ev.preventDefault(); moveCursor(ARROWS[k]); }
   else if (k === " " || (k === "enter" && !won)) { ev.preventDefault(); if (cursorOn && cursor) flip(L.grid[cursor.y][cursor.x]); else moveCursor(0); }
