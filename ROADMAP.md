@@ -114,6 +114,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v29 – Abwandeln:** Die Gewinnkarte hat „Bearbeiten“: Das gelöste Level (auch ein geteiltes oder das Tagesrätsel)
   öffnet sich im Editor, zum Ändern und als eigene Fassung Teilen. Geteilte Titel werden zu „Remix: …“, ein eigener
   Entwurf wird nur nach Rückfrage ersetzt.
+- **v29.1 – Neues zeigen, nicht nur sagen:** Ein Neuling-Durchgang (Sonnet-Sub-Agent mit Screenshots) fand, dass neue
+  Mechaniken nur als blasser Satz am Rand erklärt werden. Jetzt pulsieren beim ersten Tor-, Teiler-, Portal- und
+  Prisma-Level die neuen Teile ein paar Sekunden golden, und der „Neu:“-Hinweis steht heller.
 
 ## Als Nächstes
 

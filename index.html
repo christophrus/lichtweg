@@ -102,6 +102,7 @@
   #tools select { background:rgba(255,255,255,.06); color:var(--ink); border:1px solid rgba(255,255,255,.12); border-radius:10px; font-family:inherit; }
   #tools select option { background:#10142a; }
   #tools button.sel { border-color:var(--gold); background:rgba(255,210,122,.2); color:var(--gold); }
+  #hint.new { color:var(--ink); }
   #toolmsg { color:var(--dim); font-size:13px; min-height:17px; text-align:center; max-width:640px; }
   .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
   @media (max-width: 560px) {
@@ -819,8 +820,13 @@ function loadLevel(n) {
     10: "Neu: Farbtore lassen nur Licht in ihrer Farbe durch. Das Symbol zeigt, welcher Kristall es färben muss. Goldene Tore: nur ungefärbtes Licht.",
   };
   $("hint").textContent = hints[n] || ""; $("hint").style.opacity = hints[n] ? 1 : 0;
+  // Neue Mechanik: die neuen Teile auf dem Brett ein paar Sekunden pulsieren lassen, den Hinweis heller zeigen
+  const intro = { [GATE_LEVEL]: GATE, [SPLIT_LEVEL]: SPLIT, [PORTAL_LEVEL]: PORTAL, [PRISM_LEVEL]: PRISM }[n];
+  introCells = intro !== undefined ? L.grid.flat().filter(c => c.t === intro) : []; introUntil = performance.now() + 6000;
+  $("hint").classList.toggle("new", !!introCells.length);
   layout();
 }
+let introCells = [], introUntil = 0;
 
 // ---------- Zufallslevel: beliebiger Startwert, Stufe wie dein Fortschritt, als Link teilbar (#z=Stufe-Startwert) ----------
 const seedHash = (n, seed) => `#z=${n}-${seed}`;
@@ -1388,7 +1394,7 @@ const REDUCED = !!globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").ma
 let lastInput = 0, lastDraw = 0, drawn = 0;
 for (const ev of ["pointerdown", "pointermove", "keydown", "wheel", "resize", "hashchange", "focus"])
   addEventListener(ev, () => { lastInput = performance.now(); }, { passive: true, capture: true });
-const busy = now => now - lastInput < 4000 || particles.length || (T && shown < T.dist) || now < tipUntil || (L && L.grid.flat().some(c => c.target !== undefined && Math.abs(c.ang - c.target) > .001));
+const busy = now => now - lastInput < 4000 || (introCells.length && now < introUntil) || particles.length || (T && shown < T.dist) || now < tipUntil || (L && L.grid.flat().some(c => c.target !== undefined && Math.abs(c.ang - c.target) > .001));
 function frame(now) {
   if (L && !busy(now) && now - lastDraw < (REDUCED ? 1000 : 50) - 2) return requestAnimationFrame(frame);
   lastDraw = now; drawn++;
@@ -1565,6 +1571,11 @@ function frame(now) {
   }
 
   // Tipp-Markierung
+  if (introCells.length && now < introUntil && !won) {
+    ctx.save(); ctx.strokeStyle = `rgba(255,210,122,${.5 + .35 * Math.sin(t * 5)})`; ctx.lineWidth = Math.max(2, cs * .05);
+    for (const c of introCells) { ctx.beginPath(); ctx.arc(c._x, c._y, cs * (.5 + .04 * Math.sin(t * 5)), 0, 6.283); ctx.stroke(); }
+    ctx.restore();
+  }
   if (tipCell && now < tipUntil && !won) {
     ctx.save(); ctx.strokeStyle = `rgba(140,230,255,${.55 + .35 * Math.sin(t * 8)})`; ctx.lineWidth = Math.max(2, cs * .06);
     ctx.beginPath(); ctx.arc(tipCell._x, tipCell._y, cs * (.45 + .05 * Math.sin(t * 6)), 0, 6.283); ctx.stroke(); ctx.restore();
