@@ -107,6 +107,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v28.4 – Geladener Spielstand bleibt geladen:** Mit v28.3 hätte ein zweiter offener Tab den alten Fortschritt in
   einen frisch geladenen Spielstand zurückgemischt. „Spielstand laden“ setzt jetzt eine neue Generation; Tabs
   übernehmen sie vollständig, statt zu mischen.
+- **Tests melden sich öffentlich:** Fehlgeschlagene Prüfungen und Abstürze erscheinen in GitHub Actions als
+  Anmerkungen (`::error::`), die man ohne Anmeldung lesen kann – so ließ sich ein WebKit-Fehler im Zwei-Tab-Test finden.
 
 ## Als Nächstes
 
