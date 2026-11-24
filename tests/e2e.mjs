@@ -286,12 +286,14 @@ if (engine === "chromium") {
   check("Veralteter Tab dreht nichts zurück", kept[0] >= 2 && kept[1] && kept[2] === 1, kept.join("/"));
   // Spielstand laden ersetzt bewusst – der andere Tab mischt den alten Stand nicht wieder hinein
   const code = "LW1:" + Buffer.from(JSON.stringify({ unlocked: 1, stars: {}, daily: { results: {} } })).toString("base64");
-  a.once("dialog", d => d.accept(code));
+  let dialogSeen = "";
+  a.once("dialog", d => { dialogSeen = d.type(); d.accept(code); });
   await a.click("#titleBtn"); await a.click("#restore", { noWaitAfter: true }).catch(() => {});   // Tab lädt danach neu
   await b.waitForFunction(() => save.unlocked === 1, null, { timeout: 8000 }).catch(() => {});
   await b.evaluate(() => persist());
   const after = await b.evaluate(() => { const s = JSON.parse(localStorage.getItem("lichtweg")); return [s.unlocked, Object.keys(s.stars).length, Object.keys(s.daily.results).length, save.unlocked]; });
-  check("Geladener Spielstand ersetzt auch im anderen Tab", after.join() === "1,0,0,1", after.join("/"));
+  const why = await b.evaluate(() => JSON.stringify({ gen: JSON.parse(localStorage.getItem("lichtweg")).gen || 0, mine: save.gen || 0 }));
+  check("Geladener Spielstand ersetzt auch im anderen Tab", after.join() === "1,0,0,1", `${after.join("/")} Dialog:${dialogSeen || "keiner"} ${why}`);
   await ctx.close();
 }
 
