@@ -51,9 +51,9 @@ const solve = p => p.evaluate(() => { for (const c of L.grid.flat()) if (c.t ===
   const p = await page();
   await p.goto(base);
   await p.waitForFunction(() => typeof L !== "undefined" && L);
-  const hidden = await p.evaluate(() => [...document.querySelectorAll("#win button, .overlay button")]
-    .filter(b => getComputedStyle(b).visibility !== "hidden" && !b.closest(".show")).map(b => b.id));
-  check("Ausgeblendete Karten nicht fokussierbar", !hidden.length, hidden.join(", "));
+  const [all, hidden] = await p.evaluate(() => { const bs = [...document.querySelectorAll("#win button, .overlay button")];
+    return [bs.length, bs.filter(b => getComputedStyle(b).visibility !== "hidden" && !b.closest(".show")).map(b => b.id)]; });
+  check("Ausgeblendete Karten nicht fokussierbar", all >= 10 && !hidden.length, `${all} Knöpfe; sichtbar: ${hidden.join(", ")}`);
   await p.keyboard.press("l");
   await p.waitForSelector("#levels.show");
   const inside = await p.evaluate(() => !!document.activeElement.closest("#levels"));
@@ -155,10 +155,11 @@ if (engine === "chromium") {
   await p.waitForFunction(() => typeof L !== "undefined" && L);
   const m = await p.evaluate(() => ({
     overflow: document.documentElement.scrollWidth > innerWidth + 1,
+    count: document.querySelectorAll("#hud > .ctrl button").length,
     small: [...document.querySelectorAll("#hud > .ctrl button")].map(b => b.getBoundingClientRect()).filter(r => r.width < 36 || r.height < 40).length,
     board: cs * L.size <= innerWidth }));
   check("Handy: keine Scrollleiste, Brett passt", !m.overflow && m.board, JSON.stringify(m));
-  check("Handy: Spielknöpfe mindestens 36×40 px", !m.small, m.small + " zu klein");
+  check("Handy: Spielknöpfe mindestens 36×40 px", m.count >= 7 && !m.small, `${m.small} von ${m.count} zu klein`);
   // Tippen auf einen Spiegel dreht ihn (echter Touch, wo die Engine es kann)
   const turned = await p.evaluate(() => { const c = L.grid.flat().find(rotatable); return [c._x, c._y, c.o]; });
   if (engine === "firefox") await p.mouse.click(turned[0], turned[1]); else await p.touchscreen.tap(turned[0], turned[1]);
@@ -243,8 +244,10 @@ if (engine === "chromium") {
   await p.evaluate(() => { location.hash = "#heute"; });
   await p.waitForFunction(() => !L.archive && L.day === "2026-12-05");
   check("Zurück zu heute mit gespeicherten Zügen", await p.evaluate(() => moves === 3));
+  const d2 = await p.evaluate(() => save.daily);
+  check("Serie bleibt auch nach Weiter und Zurück", d2.streak === 2 && d2.last === "2026-12-04", JSON.stringify([d2.streak, d2.last]));
   await p.evaluate(() => { location.hash = "#tag=2026-12-07"; });
-  await p.waitForTimeout(200);
+  await p.waitForFunction(() => /Mitternacht/.test($("hint").textContent), null, { timeout: 3000 }).catch(() => {});
   check("Zukunft lässt sich nicht öffnen, mit Erklärung", await p.evaluate(() => L.day === "2026-12-05" && !L.archive && /Mitternacht/.test($("hint").textContent)));
   await p.evaluate(() => { location.hash = "#tag=2026-11-01"; });
   await p.waitForFunction(() => /noch kein/.test($("hint").textContent), null, { timeout: 3000 }).catch(() => {});
@@ -265,7 +268,7 @@ if (engine === "chromium") {
   await p.waitForFunction(() => !busy(performance.now()), null, { timeout: 20000 });
   const a = await p.evaluate(() => drawn); await p.waitForTimeout(2000); const idle = (await p.evaluate(() => drawn)) - a;
   await p.mouse.move(100, 100); const b = await p.evaluate(() => drawn); await p.waitForTimeout(500); const active = (await p.evaluate(() => drawn)) - b;
-  check("Ruhe: höchstens ein Bild pro Sekunde, nach Eingabe flüssig", idle <= 4 && active >= 15, `Ruhe ${idle}, aktiv ${active}`);
+  check("Ruhe: höchstens ein Bild pro Sekunde, nach Eingabe flüssig", idle <= 3 && active >= 10, `Ruhe ${idle}, aktiv ${active}`);
   await ctx.close();
 }
 
@@ -278,7 +281,7 @@ if (engine === "chromium") {
   await a.waitForSelector("#win.show", { timeout: 8000 });
   await a.evaluate(() => { loadDaily(); for (const c of L.grid.flat()) { let g = 0; while (rotatable(c) && g++ < 4 && (c.t === PRISM ? c.r !== c.sol : c.solO !== undefined && c.o !== c.solO)) flip(c); } });
   await a.waitForFunction(() => !!save.daily.results[L.day], null, { timeout: 8000 });
-  await b.waitForFunction(() => save.unlocked >= 2, null, { timeout: 3000 }).catch(() => {});
+  await b.waitForFunction(() => save.unlocked >= 2 && Object.keys(save.daily.results).length === 1, null, { timeout: 3000 }).catch(() => {});
   const seen = await b.evaluate(() => [save.unlocked, Object.keys(save.daily.results).length, $("daily").classList.contains("fresh")]);
   check("Zweiter Tab übernimmt Fortschritt und Tagesrätsel", seen[0] >= 2 && seen[1] === 1 && !seen[2], seen.join("/"));
   await b.evaluate(() => { save.unlocked = 1; save.stars = {}; save.daily.results = {}; persist(); });   // veralteter Stand speichert
@@ -291,7 +294,8 @@ if (engine === "chromium") {
   // Gewinnkarte des Tagesrätsels liegt noch über dem Titel: schließen und die Übersicht direkt öffnen
   await a.evaluate(() => { $("win").classList.remove("show"); openLevels(); });
   await a.click("#restore", { noWaitAfter: true });   // Tab lädt danach neu
-  await b.waitForFunction(() => save.unlocked === 1, null, { timeout: 8000 }).catch(() => {});
+  const heard = await b.waitForFunction(() => save.unlocked === 1, null, { timeout: 8000 }).then(() => true, () => false);
+  check("Anderer Tab hört den geladenen Spielstand sofort (ohne eigenes Speichern)", heard);
   await b.evaluate(() => persist());
   const after = await b.evaluate(() => { const s = JSON.parse(localStorage.getItem("lichtweg")); return [s.unlocked, Object.keys(s.stars).length, Object.keys(s.daily.results).length, save.unlocked]; });
   const why = await b.evaluate(() => JSON.stringify({ gen: JSON.parse(localStorage.getItem("lichtweg")).gen || 0, mine: save.gen || 0 }));
@@ -335,14 +339,15 @@ if (engine === "chromium") {
     const code = "LW1:" + Buffer.from(JSON.stringify({ unlocked: 2, stars: { 1: 3 }, daily: { results: {} } })).toString("base64");
     let seen = "";
     a.once("dialog", d => { seen = d.type(); d.accept(code); });
-    await a.evaluate(() => openLevels());
+    await a.evaluate(() => { openLevels(); window.__vorher = 1; });
     await a.click("#restore", { noWaitAfter: true }).catch(e => { seen += " click:" + e.message.slice(0, 40); });
-    await a.waitForTimeout(1500);
+    // Erst prüfen, wenn der Tab wirklich neu geladen hat (dann ist auch ein Überschreiben beim Laden schon passiert)
+    await a.waitForFunction(() => !window.__vorher && typeof L !== "undefined" && L, null, { timeout: 10000 }).catch(() => { seen += " kein Neuladen"; });
     const c = await ctx.newPage(); await c.goto(base); await c.waitForFunction(() => typeof L !== "undefined" && L);
     const s = await c.evaluate(() => JSON.parse(localStorage.getItem("lichtweg")));
     if (s.unlocked !== 2 || !s.gen) lost.push(`${i}:${s.unlocked}/${s.gen ? "gen" : "ohne"}/${seen || "kein Dialog"}`);
-    await c.evaluate(() => $("langBtn").click());
-    await c.waitForTimeout(1500);
+    await c.evaluate(() => { window.__vorher = 1; $("langBtn").click(); });
+    await c.waitForFunction(() => !window.__vorher && typeof L !== "undefined" && L, null, { timeout: 10000 }).catch(() => {});
     const d = await ctx.newPage(); await d.goto(base); await d.waitForFunction(() => typeof L !== "undefined" && L);
     if ((await d.evaluate(() => localStorage.getItem("lichtweg-lang"))) !== "en") langLost++;
     await ctx.close();

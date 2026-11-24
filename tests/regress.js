@@ -47,14 +47,16 @@ check("Level 1–400 fair und lösbar", !bad.length, bad.slice(0, 10).join(", ")
 // 4. Tagesrätsel: #1 unverändert, zwei Jahre lösbar, Sonntage und Mittwoche wie versprochen
 const d1 = dailyLevel({ y: 2026, m: 11, d: 23 });
 check("Tagesrätsel #1 unverändert", sha(fp(d1)) === "d734f990181af3f5df6dea60c2c38ada2916c67b");
-let dbad = 0, wedMiss = 0;
+let dbad = 0, wedMiss = 0, sunMiss = 0, suns = 0;
 for (let i = 0; i < 730; i++) {
   const t = shiftDay({ y: 2026, m: 11, d: 23 }, i), L = dailyLevel(t);
   if (L.par < 4 || isSolved(L, trace(L)) || !isSolved(L, trace(solve(L)))) dbad++;
   if (isPortalDay(t) && !hasPortal(L)) wedMiss++;
+  if (isSunday(t)) { suns++; if (!L.grid.flat().some(c => c.t === T.SPLIT || c.t === T.PRISM)) sunMiss++; }
 }
 check("Tagesrätsel 2 Jahre fair und lösbar", !dbad, dbad + " Fehler");
 check("Portal-Mittwoche haben ein Portal", !wedMiss, wedMiss + " ohne");
+check("Sonntagsrätsel haben Teiler oder Prisma", suns >= 100 && !sunMiss, `${sunMiss} von ${suns} ohne`);
 
 // 5. Level-Links: Hin und zurück identisch, gelöst lösbar, kaputte Codes werden abgelehnt
 let cbad = 0;
@@ -83,12 +85,14 @@ const startWith = (raw, broken = false) => {
   const save = new Function("localStorage", cut('"use strict";', "const tx") + cut("// ---------- Zustand", "let mode =") + "\nreturn save;")(localStorage);
   return { save, kept };
 };
-let sv = 0;
-for (const raw of ["{kaputt", "null", "[1]", "7", '{"unlocked":"x","stars":null,"daily":5}']) {
-  try { const { save } = startWith(raw); if (save.unlocked !== 1 || typeof save.stars !== "object" || typeof save.daily.results !== "object") sv++; } catch { sv++; }
+const plain = o => o !== null && typeof o === "object" && !Array.isArray(o);   // null und Arrays zählen nicht
+const sv = [];
+for (const raw of ["{kaputt", "null", "[1]", "7", '{"unlocked":"x","stars":null,"daily":5}', '{"stars":[1],"daily":{"results":null}}', '{"daily":{"results":[]}}']) {
+  try { const { save } = startWith(raw); if (save.unlocked !== 1 || !plain(save.stars) || !plain(save.daily) || !plain(save.daily.results)) sv.push(raw); }
+  catch (e) { sv.push(raw + " (" + e.message + ")"); }
 }
-try { startWith("{}", true); } catch { sv++; }
-check("Kaputter oder gesperrter Speicher wird geglättet", !sv, sv + " Fehler");
+try { startWith("{}", true); } catch (e) { sv.push("gesperrt (" + e.message + ")"); }
+check("Kaputter oder gesperrter Speicher wird geglättet", !sv.length, sv.join(" | "));
 let keptOk = false; try { keptOk = startWith("{kaputt").kept["lichtweg-kaputt"] === "{kaputt"; } catch {}
 check("Unlesbarer Spielstand wird aufgehoben", keptOk);
 const good = startWith(JSON.stringify({ unlocked: 9, current: 4, stars: { 3: 2 }, daily: { results: { "2026-11-20": { moves: 5, par: 5, stars: 3 } }, streak: 2 } })).save;
@@ -106,9 +110,9 @@ const aria = [...html.matchAll(/aria-(?:labelledby|describedby)="([^"]+)"/g)].fl
 check("aria-Verweise zeigen auf vorhandene IDs", !aria.length, aria.join(", "));
 
 // 9. Kleine Fallen, die schon einmal zugeschnappt sind
-check("Kein festes „Züge“ hinter einer Zahl (1 Zug, 2 Züge)", !/\}\s*Züge/.test(script));
+check("Kein festes „Züge“ hinter einer Zahl (1 Zug, 2 Züge)", !/\}\s*Züge|\+\s*["'`]\s*Züge|\)\s*Züge/.test(script));
 check("Kein innerText (liefert bei unsichtbaren Karten nichts)", !/\.innerText\b/.test(script));
-check("Keine allgemeine canvas-Regel (riss den QR-Code aus seiner Karte)", !/^\s*canvas\s*[{,]/m.test(markup));
+check("Keine allgemeine canvas-Regel (riss den QR-Code aus seiner Karte)", !/(^|[\s,}>+~])canvas\s*[{,:]/m.test(markup.slice(0, markup.indexOf("</style>"))));
 check("Zoomen erlaubt (kein maximum-scale, kein user-scalable=no)", !/maximum-scale|user-scalable\s*=\s*no/i.test(markup));
 
 console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen.` : "\nAlles in Ordnung.");
