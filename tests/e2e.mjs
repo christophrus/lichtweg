@@ -288,7 +288,9 @@ if (engine === "chromium") {
   const code = "LW1:" + Buffer.from(JSON.stringify({ unlocked: 1, stars: {}, daily: { results: {} } })).toString("base64");
   let dialogSeen = "";
   a.once("dialog", d => { dialogSeen = d.type(); d.accept(code); });
-  await a.click("#titleBtn"); await a.click("#restore", { noWaitAfter: true }).catch(() => {});   // Tab lädt danach neu
+  // Gewinnkarte des Tagesrätsels liegt noch über dem Titel: schließen und die Übersicht direkt öffnen
+  await a.evaluate(() => { $("win").classList.remove("show"); openLevels(); });
+  await a.click("#restore", { noWaitAfter: true });   // Tab lädt danach neu
   await b.waitForFunction(() => save.unlocked === 1, null, { timeout: 8000 }).catch(() => {});
   await b.evaluate(() => persist());
   const after = await b.evaluate(() => { const s = JSON.parse(localStorage.getItem("lichtweg")); return [s.unlocked, Object.keys(s.stars).length, Object.keys(s.daily.results).length, save.unlocked]; });
