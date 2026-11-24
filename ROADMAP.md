@@ -108,7 +108,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   einen frisch geladenen Spielstand zurückgemischt. „Spielstand laden“ setzt jetzt eine neue Generation; Tabs
   übernehmen sie vollständig, statt zu mischen.
 - **Tests melden sich öffentlich:** Fehlgeschlagene Prüfungen und Abstürze erscheinen in GitHub Actions als
-  Anmerkungen (`::error::`), die man ohne Anmeldung lesen kann – so ließ sich ein WebKit-Fehler im Zwei-Tab-Test finden.
+  Anmerkungen (`::error::`), die man ohne Anmeldung lesen kann. Der WebKit-Fehler im Zwei-Tab-Test lag am Test: Die
+  Gewinnkarte lag noch über dem Titel, der Klick auf „Spielstand laden“ kam nie an. Ein neuer Test lädt fünfmal einen
+  Spielstand und wechselt fünfmal die Sprache, jeweils direkt vor dem Neuladen – in allen drei Engines geht nichts verloren.
 
 ## Als Nächstes
 
