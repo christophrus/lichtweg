@@ -8,6 +8,14 @@ const base = process.argv[2] || "http://localhost:8765/";
 const engine = process.env.LW_BROWSER || "chromium";
 // Lokal ohne Browser-Download: LW_CHANNEL=chrome nimmt das installierte Chrome
 const browser = await pw[engine].launch(process.env.LW_CHANNEL ? { channel: process.env.LW_CHANNEL } : {});
+// Jeder Tab jedes Tests meldet Skriptfehler hierher – am Ende muss die Liste leer sein
+const allErrors = [];
+const newContext = browser.newContext.bind(browser);
+browser.newContext = async (...args) => {
+  const ctx = await newContext(...args);
+  ctx.on("page", pg => pg.on("pageerror", e => allErrors.push(`${pg.url().replace(/^https?:\/\/[^/]+/, "")}: ${e.message}`)));
+  return ctx;
+};
 console.log("Engine:", engine);
 // Absturz (z. B. Zeitüberschreitung) ebenfalls als lesbare Anmerkung
 process.on("uncaughtException", e => {
@@ -185,6 +193,13 @@ if (engine === "chromium") {
       overlap: [...btns, $("stats"), $("hint")].filter(hit).map(e => e.id), inside: board.t >= 0 && board.b <= innerHeight && board.r <= innerWidth };
   });
   check("Handy quer: Felder groß, nichts überdeckt das Brett", q.cs >= 34 && !q.small && !q.overlap.length && q.inside, JSON.stringify(q));
+  // Tagesrätsel hat den längsten Hinweis: Er darf quer weder ins Brett noch in Titel und Züge laufen
+  await p.evaluate(() => loadDaily());
+  const hq = await p.evaluate(() => {
+    const h = $("hint").getBoundingClientRect(), st = $("stats").getBoundingClientRect();
+    return { len: $("hint").textContent.length, right: Math.round(h.right), ox, top: Math.round(h.top), statsBottom: Math.round(st.bottom), bottom: Math.round(h.bottom), H: innerHeight };
+  });
+  check("Handy quer: langer Hinweis bleibt in seiner Spalte", hq.len > 60 && hq.right <= hq.ox && hq.top > hq.statsBottom && hq.bottom <= hq.H, JSON.stringify(hq));
   // QR-Code steht in seiner Karte, quer und hochkant (eine allgemeine canvas-Regel hatte ihn herausgelöst)
   for (const [w, h] of [[667, 375], [375, 667]]) {
     await p.setViewportSize({ width: w, height: h });
@@ -356,6 +371,7 @@ if (engine === "chromium") {
   check("Sprachwechsel bleibt gespeichert (5 Versuche)", !langLost, langLost + " verloren");
 }
 
+check("Keine Skriptfehler in allen Tabs aller Tests", !allErrors.length, allErrors.slice(0, 5).join(" | "));
 await browser.close();
 console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen.` : "\nAlles in Ordnung.");
 process.exit(failed ? 1 : 0);
