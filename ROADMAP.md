@@ -111,6 +111,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   Anmerkungen (`::error::`), die man ohne Anmeldung lesen kann. Der WebKit-Fehler im Zwei-Tab-Test lag am Test: Die
   Gewinnkarte lag noch über dem Titel, der Klick auf „Spielstand laden“ kam nie an. Ein neuer Test lädt fünfmal einen
   Spielstand und wechselt fünfmal die Sprache, jeweils direkt vor dem Neuladen – in allen drei Engines geht nichts verloren.
+- **v29 – Abwandeln:** Die Gewinnkarte hat „Bearbeiten“: Das gelöste Level (auch ein geteiltes oder das Tagesrätsel)
+  öffnet sich im Editor, zum Ändern und als eigene Fassung Teilen. Geteilte Titel werden zu „Remix: …“, ein eigener
+  Entwurf wird nur nach Rückfrage ersetzt.
 
 ## Als Nächstes
 

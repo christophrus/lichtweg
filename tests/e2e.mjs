@@ -299,6 +299,31 @@ if (engine === "chromium") {
   await ctx.close();
 }
 
+// 13. Gelöstes Level im Editor abwandeln: gleicher Aufbau, wieder teilbar, eigener Entwurf nur nach Rückfrage ersetzt
+{
+  const p = await page();
+  await p.goto(base);
+  await p.waitForFunction(() => typeof L !== "undefined" && L);
+  await p.evaluate(() => { loadLevel(1); });
+  await p.evaluate(() => { for (const c of L.grid.flat()) { let g = 0; while (rotatable(c) && g++ < 4 && (c.t === PRISM ? c.r !== c.sol : c.solO !== undefined && c.o !== c.solO)) flip(c); } });
+  await p.waitForSelector("#win.show", { timeout: 8000 });
+  const solved = await p.evaluate(() => encodeLevel(L));
+  await p.click("#remix");
+  const ed = await p.evaluate(() => [mode, encodeLevel(L), !!scrambleForShare()]);
+  check("Bearbeiten öffnet das gelöste Level im Editor, teilbar", ed[0] === "edit" && ed[1] === solved && ed[2], ed.join(" "));
+  // Jetzt liegt ein Entwurf vor: ein anderes Level abwandeln fragt nach, „Abbrechen“ lässt alles, wie es ist
+  await p.evaluate(() => { loadLevel(1); for (const c of L.grid.flat()) { let g = 0; while (rotatable(c) && g++ < 4 && c.solO !== undefined && c.o !== c.solO) flip(c); } });
+  await p.waitForSelector("#win.show", { timeout: 8000 });
+  await p.evaluate(() => { store.set("lichtweg-editor", encodeLevel(generate(3))); });
+  let asked = "";
+  p.once("dialog", d => { asked = d.type(); d.dismiss(); });
+  await p.click("#remix");
+  const kept = await p.evaluate(() => [mode, store.get("lichtweg-editor") === encodeLevel(generate(3))]);
+  check("Eigener Entwurf wird nur nach Rückfrage ersetzt", asked === "confirm" && kept[0] !== "edit" && kept[1], `${asked || "keine Frage"} ${kept.join(" ")}`);
+  check("Bearbeiten ohne Fehler", !p.errors.length, p.errors.join(" | "));
+  await p.context().close();
+}
+
 // 12. Speichern direkt vor einem Neuladen (Spielstand laden, Sprache wechseln) geht nicht verloren – 5 Versuche
 {
   let lost = [], langLost = 0;

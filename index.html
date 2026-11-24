@@ -180,7 +180,7 @@
   <h2 id="winTitle">Licht gefunden</h2>
   <div class="stars" id="winStars"></div>
   <p id="winText"></p>
-  <div class="ctrl"><button id="again">Nochmal</button><button id="share" class="primary">Teilen</button><button id="shot" title="Bild des gelösten Bretts teilen">Bild</button><button id="qrBtn" title="Als QR-Code zeigen">QR</button><button id="go" class="primary">Weiter →</button></div>
+  <div class="ctrl"><button id="again">Nochmal</button><button id="share" class="primary">Teilen</button><button id="shot" title="Bild des gelösten Bretts teilen">Bild</button><button id="qrBtn" title="Als QR-Code zeigen">QR</button><button id="remix" title="Dieses Level im Editor öffnen und abwandeln">Bearbeiten</button><button id="go" class="primary">Weiter →</button></div>
 </div></div>
 
 <script>
@@ -936,6 +936,7 @@ function onWin() {
       : tx("Zu den Leveln", "To the levels");
   }
   $("qrBtn").hidden = !["custom", "seed", "daily"].includes(mode);
+  $("remix").hidden = mode === "custom" && customFromEditor;   // eigenes Level testen: dafür gibt es „Zum Editor“
   $("winStars").innerHTML = [1, 2, 3].map(i => `<span class="${i <= stars ? "on" : "off"}">★</span>`).join("");
   $("winText").innerHTML = text;
   // Aus dem Text selbst, nicht aus der Karte: Die ist noch unsichtbar, und innerText liefert dann nichts
@@ -1045,6 +1046,17 @@ function openEditor(level) {
     $("toolRow").append(b);
   }
   editStatus(); layout();
+}
+// Gelöstes Level im Editor abwandeln: Der gelöste Stand ist genau das, was der Editor als Lösung braucht
+function remix() {
+  const lv = decodeLevel(encodeLevel(L), true); if (!lv) return;
+  const draft = store.get("lichtweg-editor");
+  if (draft && draft !== encodeLevel(EDIT_DEFAULT())
+    && !confirm(tx("Dein Entwurf im Editor wird durch dieses Level ersetzt. Weiter?", "This level will replace your draft in the editor. Continue?"))) return;
+  const t = mode === "custom" ? titleOf(customCode || "") : "";
+  $("etitle").value = t ? tx("Remix: ", "Remix: ") + t : ""; store.set("lichtweg-editor-title", $("etitle").value);
+  openEditor(lv); saveDraft();
+  say(tx("Level im Editor geöffnet. Ändere es und teile deine Fassung.", "Level opened in the editor. Change it and share your version."));
 }
 function selectTool(id) {
   tool = id; for (const o of $("toolRow").children) o.classList.toggle("sel", o.dataset.tool === id);
@@ -1803,6 +1815,7 @@ $("eqr").onclick = () => { const code = scrambleForShare(); if (code) showQR(lev
 $("qrClose").onclick = closeQR;
 $("qrBox").addEventListener("pointerdown", ev => { if (ev.target === $("qrBox")) closeQR(); });
 $("again").onclick = restart;
+$("remix").onclick = remix;
 $("go").onclick = proceed;
 $("share").onclick = shareDaily;
 $("build").onclick = () => openEditor();
@@ -1854,6 +1867,7 @@ if (EN) {
   $("cal").setAttribute("aria-label", "Daily puzzles of the last four weeks");
   set("qrTitle", "Scan to play"); set("qrClose", "Close"); $("qrCanvas").setAttribute("aria-label", "QR code");
   set("qrBtn", null, "Show as QR code"); set("eqr", null, "Show as QR code");
+  set("remix", "Edit"); $("remix").title = "Open this level in the editor to make your own version";
   set("shot", "Picture"); $("shot").title = "Share a picture of the solved board";
   set("winTitle", "Light found"); set("again", "Again"); set("share", "Share"); set("go", "Next →");
 }
