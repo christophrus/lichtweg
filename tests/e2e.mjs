@@ -297,6 +297,33 @@ if (engine === "chromium") {
   await ctx.close();
 }
 
+// 12. Speichern direkt vor einem Neuladen (Spielstand laden, Sprache wechseln) geht nicht verloren – 5 Versuche
+{
+  let lost = [], langLost = 0;
+  for (let i = 0; i < 5; i++) {
+    const ctx = await browser.newContext({ locale: "de-DE", serviceWorkers: "block" });
+    const a = await ctx.newPage();
+    await a.goto(base); await a.waitForFunction(() => typeof L !== "undefined" && L);
+    await a.evaluate(() => { save.unlocked = 7; persist(); });
+    const code = "LW1:" + Buffer.from(JSON.stringify({ unlocked: 2, stars: { 1: 3 }, daily: { results: {} } })).toString("base64");
+    let seen = "";
+    a.once("dialog", d => { seen = d.type(); d.accept(code); });
+    await a.evaluate(() => openLevels());
+    await a.click("#restore", { noWaitAfter: true }).catch(e => { seen += " click:" + e.message.slice(0, 40); });
+    await a.waitForTimeout(1500);
+    const c = await ctx.newPage(); await c.goto(base); await c.waitForFunction(() => typeof L !== "undefined" && L);
+    const s = await c.evaluate(() => JSON.parse(localStorage.getItem("lichtweg")));
+    if (s.unlocked !== 2 || !s.gen) lost.push(`${i}:${s.unlocked}/${s.gen ? "gen" : "ohne"}/${seen || "kein Dialog"}`);
+    await c.evaluate(() => $("langBtn").click());
+    await c.waitForTimeout(1500);
+    const d = await ctx.newPage(); await d.goto(base); await d.waitForFunction(() => typeof L !== "undefined" && L);
+    if ((await d.evaluate(() => localStorage.getItem("lichtweg-lang"))) !== "en") langLost++;
+    await ctx.close();
+  }
+  check("Spielstand laden kommt an (5 Versuche)", !lost.length, lost.join(" | "));
+  check("Sprachwechsel bleibt gespeichert (5 Versuche)", !langLost, langLost + " verloren");
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen.` : "\nAlles in Ordnung.");
 process.exit(failed ? 1 : 0);
