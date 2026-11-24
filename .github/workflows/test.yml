@@ -30,6 +30,7 @@ jobs:
   e2e:
     # Spielt das Spiel in drei Browser-Engines (WebKit = Safari, also jedes iPhone)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:

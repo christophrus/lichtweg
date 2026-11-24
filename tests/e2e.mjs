@@ -17,6 +17,13 @@ browser.newContext = async (...args) => {
   return ctx;
 };
 console.log("Engine:", engine);
+// Wachhund: Hängt ein Schritt, nach 8 Minuten mit der letzten bestandenen Prüfung abbrechen
+let lastCheck = "(noch keine)";
+setTimeout(() => {
+  console.log(`FEHLER Hängt nach: ${lastCheck}`);
+  if (process.env.GITHUB_ACTIONS) console.log(`::error::${engine}: Hängt nach Prüfung „${lastCheck}“`);
+  process.exit(1);
+}, 8 * 60e3).unref();
 // Absturz (z. B. Zeitüberschreitung) ebenfalls als lesbare Anmerkung
 process.on("uncaughtException", e => {
   console.log(`FEHLER Absturz – ${e.message}`);
@@ -24,7 +31,7 @@ process.on("uncaughtException", e => {
   process.exit(1);
 });
 let failed = 0;
-const check = (name, ok, detail = "") => { console.log(`${ok ? "ok  " : "FEHLER"} ${name}${detail ? " – " + detail : ""}`); if (!ok) failed++;
+const check = (name, ok, detail = "") => { lastCheck = name; console.log(`${ok ? "ok  " : "FEHLER"} ${name}${detail ? " – " + detail : ""}`); if (!ok) failed++;
   // In GitHub Actions zusätzlich als Anmerkung: öffentlich lesbar, auch ohne Anmeldung
   if (!ok && process.env.GITHUB_ACTIONS) console.log(`::error::${engine}: ${name}${detail ? " – " + String(detail).replace(/\s+/g, " ") : ""}`); };
 
