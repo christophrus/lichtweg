@@ -137,6 +137,12 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v29.7 – Raster mit einem Tab-Halt:** Levelübersicht und Kalender sind je ein Tab-Halt (roving tabindex), darin wandern
   die Pfeile. Rechts/links am Zeilenende geht es in Lesereihenfolge weiter statt in eine andere Woche zu springen.
   Kalendertage nennen den Wochentag („Tagesrätsel Sonntag, 29.11.: offen“).
+- **v30 – Kapitel „Doppelte Wege“ (ab Level 61):** Ohne neues Teil, aus dem, was da ist: Jedes Level hat zwei
+  Portalpaare (der Generator legt das zweite wie das erste rückwärts als Umweg an und versucht es sonst neu), und
+  Prismen sitzen bevorzugt abseits des Hauptwegs – hinter einem Portal oder auf einem Teiler-Zweig. Die Ankunfts-
+  richtung dafür liefert der gelöste Strahl. Portalpaare haben eigene Ringfarben (violett, türkis, rosa, gold), `B`
+  nennt sie als Paare. Level 61 führt mit Hinweis und pulsierenden Portalen ein und hat nur ein Prisma.
+  Level 1–60 und die Tagesrätsel bleiben Feld für Feld gleich (neuer Fingerabdruck im Regressionstest).
 
 ## Als Nächstes
 

@@ -36,6 +36,19 @@ for (const [opt, from] of [["splitters", 22], ["portals", 35], ["prisms", 45]]) 
   check(`Level 1–${from - 1} ohne Einfluss von ${opt}`, same);
 }
 
+// 2b. Level 1–60 mit allen Mechaniken und 400 Tagesrätsel unverändert (das Kapitel ab 61 darf sie nicht berühren)
+const full = L => JSON.stringify(L.grid.map(r => r.map(c => [c.t, c.o, c.r, c.id, c.locked, c.hue, c.shape])));
+{ const h = crypto.createHash("sha1"); for (let n = 1; n <= 60; n++) h.update(full(generate(n)));
+  check("Level 1–60 komplett unverändert", h.digest("hex") === "d76761bd20a741bed22a13a5f3cd8e8e05b21f21"); }
+{ const h = crypto.createHash("sha1");
+  for (let i = 0; i < 400; i++) h.update(JSON.stringify(dailyLevel(shiftDay({ y: 2026, m: 11, d: 23 }, i)).grid.map(r => r.map(c => [c.t, c.o, c.r, c.id]))));
+  check("Tagesrätsel der ersten 400 Tage unverändert", h.digest("hex") === "832ca0b6468e81b43ca5d3fe2e3081f37102d575"); }
+// 2c. Kapitel „Doppelte Wege“: zwei Portalpaare, ein Prisma abseits des Hauptwegs
+{ const miss = [];
+  for (let n = 61; n <= 260; n++) { const L = generate(n), ids = new Set(L.grid.flat().filter(c => c.t === T.PORTAL).map(c => c.id));
+    if (ids.size < 2 || !L.prismOff) miss.push(n); }
+  check("Ab Level 61: zwei Portalpaare und ein Prisma hinter dem Portal", miss.length <= 4, `${miss.length} ohne: ${miss.slice(0, 8).join(", ")}`); }
+
 // 3. Level 1–400: verdreht ungelöst, Ziel stimmt, gelöst lösbar
 let bad = [];
 for (let n = 1; n <= 400; n++) {

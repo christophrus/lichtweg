@@ -445,6 +445,20 @@ if (engine === "chromium") {
   await p.context().close();
 }
 
+// 17. Kapitel „Doppelte Wege“ ab Level 61: Hinweis, Portale pulsieren, lösbar wie jedes Level
+{
+  const p = await page("de", () => localStorage.setItem("lichtweg", JSON.stringify({ unlocked: 62, current: 61, stars: {} })));
+  await p.goto(base);
+  await p.waitForFunction(() => typeof L !== "undefined" && L && L.n === 61);
+  const ch = await p.evaluate(() => ({ hint: $("hint").textContent, isNew: $("hint").classList.contains("new"),
+    pulse: introCells.length, pairs: new Set(L.grid.flat().filter(c => c.t === PORTAL).map(c => c.id)).size }));
+  check("Level 61: Kapitelhinweis, beide Portalpaare pulsieren", /^Neues Kapitel – Doppelte Wege/.test(ch.hint) && ch.isNew && ch.pulse === 4 && ch.pairs === 2, JSON.stringify(ch));
+  await p.evaluate(() => { for (const c of L.grid.flat()) { if (c.t === MIRROR && c.solO !== undefined && c.o !== c.solO) flip(c); if (c.t === PRISM) while (c.r !== c.sol) flip(c); } });
+  check("Level 61 lässt sich lösen", await p.waitForSelector("#win.show", { timeout: 8000 }).then(() => true, () => false));
+  check("Kapitel ohne Fehler", !p.errors.length, p.errors.join(" | "));
+  await p.context().close();
+}
+
 // 12. Speichern direkt vor einem Neuladen (Spielstand laden, Sprache wechseln) geht nicht verloren – 5 Versuche
 {
   let lost = [], langLost = 0;

@@ -106,6 +106,7 @@
   /* Gelöstes Brett ansehen: die Karte weicht, ein kleiner Knopf holt sie zurück */
   #unpeek { position:fixed; left:50%; transform:translateX(-50%); z-index:4; }
   #unpeek[hidden] { display:none; }
+  body.peeking #hint { visibility:hidden; }   /* der Knopf sitzt unter dem Brett, wo sonst der Hinweis steht */
   body.land #unpeek { left:max(16px, env(safe-area-inset-left)); transform:none; top:110px !important; }
   /* Erste Schritte: kleine Beschriftungen unter den Symbolen, bis Level 2 geschafft ist */
   #hud.labels > .ctrl button { position:relative; }
@@ -221,6 +222,8 @@ const PRISM_LEVEL = 45;                                  // ab hier gibt es Pris
 // r gerade = "\", ungerade = "/"; helle Seite zeigt nach NO, SO, SW, NW. PRISM_IN: Laufrichtungen, die sie treffen.
 const PRISM_IN = [[2, 1], [2, 3], [0, 3], [0, 1]];
 const PORTAL_LEVEL = 35;                                 // ab hier gibt es Portale (dort, wo ein Umweg Platz hat)
+const PORTAL_RGB = ["205,195,255", "140,230,225", "255,185,220", "240,215,150"];   // Ringfarbe je Portalpaar
+const DUO_LEVEL = 61;                                    // Kapitel „Doppelte Wege“: zwei Portalpaare, Prismen auch hinter Portalen
 const HUES = [188, 312, 140, 265, 28];                   // Kristallfarben
 
 function rng(seed) {
@@ -247,6 +250,7 @@ function params(n) {
 // n bestimmt die Schwierigkeit, seed das konkrete Level (Standard: aus n abgeleitet).
 function generate(n, seed = n * 1000003, opts = {}) {
   const gates = opts.gates ?? n >= GATE_LEVEL, splitters = opts.splitters ?? n >= SPLIT_LEVEL, portals = opts.portals ?? n >= PORTAL_LEVEL, prisms = opts.prisms ?? n >= PRISM_LEVEL;
+  const duo = opts.duo ?? (n >= DUO_LEVEL && portals && prisms);
   const p = params(n), S = p.size;
   for (let attempt = 0; attempt < 5000; attempt++) {
     const R = rng(seed + attempt * 7919 + 17);
@@ -310,7 +314,9 @@ function generate(n, seed = n * 1000003, opts = {}) {
     if (gates) addGates(L, n, seed, straight, visited);
     if (splitters) addSplitter(L, n, seed, straight, mirrors, visited);
     if (portals) addPortals(L, n, seed, mirrors, visited);
-    if (prisms) addPrisms(L, n, seed, mirrors);
+    // Kapitel „Doppelte Wege“: ein zweites Portalpaar muss Platz finden, sonst nächster Versuch (mit Rückfallebene)
+    if (duo && !(L.grid.some(r => r.some(c => c.t === PORTAL)) && addPortals(L, n, seed, mirrors, visited, 1)) && attempt < 600) continue;
+    if (prisms && !addPrisms(L, n, seed, mirrors, duo) && duo && attempt < 600) continue;
     return L;
   }
   throw new Error("Kein Level erzeugbar");
@@ -391,8 +397,8 @@ function addSplitter(L, n, seed, straight, mirrors, visited) {
 // nächste Feld des Wegs von der Seite, ein neuer Spiegel lenkt es wieder in die alte Richtung. Übersprungen wird
 // nichts. Der Umweg nutzt Felder abseits des Lösungswegs; Attrappen und Wände dort räumt er weg.
 // Eigener Zufall: der Lösungsweg und alles darauf bleiben, wie sie waren.
-function addPortals(L, n, seed, mirrors, visited) {
-  const R = rng(((seed ^ 0x61c88647) >>> 0) + 3131), S = L.size;
+function addPortals(L, n, seed, mirrors, visited, id = 0) {
+  const R = rng(((seed ^ 0x61c88647) >>> 0) + 3131 + id * 977), S = L.size;
   const inb = (x, y) => x >= 0 && y >= 0 && x < S && y < S;
   const turn = new Map(mirrors.map(m => [m.x + m.y * S, m])), path = [];
   let { x: px, y: py, d: pd } = L.src;
@@ -425,7 +431,7 @@ function addPortals(L, n, seed, mirrors, visited) {
     if (!b || used.size < 4) continue;
     const keep = [[a.x, a.y], [m.x, m.y], ...[...used].map(k => [k % S, Math.floor(k / S)])].map(([x, y]) => [x, y, L.grid[y][x]]);
     for (const k of used) L.grid[Math.floor(k / S)][k % S] = { t: EMPTY };          // Attrappen auf dem Umweg weg
-    L.grid[a.y][a.x] = { t: PORTAL, id: 0, x: a.x, y: a.y }; L.grid[b.y][b.x] = { t: PORTAL, id: 0, x: b.x, y: b.y };
+    L.grid[a.y][a.x] = { t: PORTAL, id, x: a.x, y: a.y }; L.grid[b.y][b.x] = { t: PORTAL, id, x: b.x, y: b.y };
     const rot = [L.grid[m.y][m.x] = { t: MIRROR, o: SLASH[e] === d ? 0 : 1, locked: false, x: m.x, y: m.y },
       ...bends.map(q => (L.grid[q.y][q.x] = { t: MIRROR, o: q.o, locked: false, x: q.x, y: q.y }))];
     let added = 0;
@@ -443,18 +449,36 @@ function addPortals(L, n, seed, mirrors, visited) {
 const solvedState = L => { const ch = L.grid.flat().filter(c => c.flipped || c.t === PRISM), keep = ch.map(c => c.t === PRISM ? c.r : c.o);
   ch.forEach(c => { if (c.t === PRISM) c.r = c.sol; else c.o ^= 1; });
   const ok = isSolved(L, trace(L)); ch.forEach((c, i) => { if (c.t === PRISM) c.r = keep[i]; else c.o = keep[i]; }); return ok; };
-function addPrisms(L, n, seed, mirrors) {
+// Ankunftsrichtung des Lichts an jedem Knick der gelösten Stellung (Felder mit zwei Ankünften fallen weg)
+function arrivals(L) {
+  const ch = L.grid.flat().filter(c => c.flipped); ch.forEach(c => c.o ^= 1);
+  const T = trace(L), seen = new Map();
+  ch.forEach(c => c.o ^= 1);
+  for (const b of T.beams) for (let i = 1; i < b.pts.length - 1; i++) {
+    const p = b.pts[i], q = b.pts[i - 1], k = Math.floor(p.x) + "," + Math.floor(p.y);
+    const d = p.x > q.x ? 0 : p.y > q.y ? 1 : p.x < q.x ? 2 : 3;
+    seen.set(k, seen.has(k) ? -1 : d);
+  }
+  return seen;
+}
+function addPrisms(L, n, seed, mirrors, duo = false) {
   const R = rng(((seed ^ 0x7feb352d) >>> 0) + 5151);
-  if (n > PRISM_LEVEL && R.next() < .35) return false;
-  const cand = R.shuffle(mirrors.filter(m => { const c = L.grid[m.y][m.x]; return c.t === MIRROR && !c.locked; }));
-  let want = 1 + (R.next() < .4 ? 1 : 0), made = 0;
+  if (!duo && n > PRISM_LEVEL && R.next() < .35) return false;
+  let cand = R.shuffle(mirrors.filter(m => { const c = L.grid[m.y][m.x]; return c.t === MIRROR && !c.locked; }));
+  if (duo) {   // zuerst Spiegel abseits des Hauptwegs: hinter Portalen und auf Teiler-Zweigen
+    const main = new Set(mirrors.map(m => m.x + "," + m.y)), arr = arrivals(L);
+    const off = R.shuffle(L.grid.flat().filter(c => c.t === MIRROR && !c.locked && !main.has(c.x + "," + c.y) && arr.get(c.x + "," + c.y) >= 0)
+      .map(c => ({ x: c.x, y: c.y, o: c.flipped ? c.o ^ 1 : c.o, d: arr.get(c.x + "," + c.y), off: true })));
+    cand = [...off.slice(0, 1), ...cand, ...off.slice(1)];
+  }
+  let want = duo ? (n === DUO_LEVEL ? 1 : 2) : 1 + (R.next() < .4 ? 1 : 0), made = 0;
   for (const m of cand) {
     if (made >= want) break;
     const old = L.grid[m.y][m.x], sol = [0, 1, 2, 3].find(r => (r & 1) === (m.o === 0 ? 1 : 0) && PRISM_IN[r].includes(m.d));
     const taps = 1 + R.int(3), r = (sol - taps + 4) % 4;
     const c = L.grid[m.y][m.x] = { t: PRISM, r, sol, x: m.x, y: m.y, ang: r * Math.PI / 2 }; c.target = c.ang;
     const par = L.par - (old.flipped ? 1 : 0) + taps;
-    if (par >= 1 && !isSolved(L, trace(L)) && solvedState(L)) { L.par = par; made++; }
+    if (par >= 1 && !isSolved(L, trace(L)) && solvedState(L)) { L.par = par; made++; if (m.off) L.prismOff = (L.prismOff || 0) + 1; }
     else L.grid[m.y][m.x] = old;
   }
   return made > 0;
@@ -736,7 +760,7 @@ function decodeLevel(code, loose = false) {
 }
 
 function startPlay(level, startMoves = 0) {
-  $("tools").hidden = true; $("stats").style.visibility = ""; $("hint").classList.remove("new"); $("unpeek").hidden = true;
+  $("tools").hidden = true; $("stats").style.visibility = ""; $("hint").classList.remove("new"); $("unpeek").hidden = true; document.body.classList.remove("peeking");
   L = level; T = trace(L); shown = 0; moves = startMoves; won = false; litPrev = new Set(); particles = [];
   undoStack = []; cursor = null; updateUndo(); tipCell = null;
   for (const c of L.grid.flat()) if (c.t === MIRROR || c.t === SPLIT) c.solO = c.flipped ? c.o ^ 1 : c.o;   // Lösung merken
@@ -822,6 +846,7 @@ function loadLevel(n) {
     3: "Wrong turn? ↶ or Z takes back your last move. Stuck? ? shows a hint.",
     4: "Mirrors with rivets are screwed in place.",
     7: "Not every mirror is on the path.",
+    61: "New chapter – Double paths: two portal pairs, ring colour and dots show which belong together. Prisms now also wait behind portals.",
     45: "New: prisms only reflect on their bright side, the dark back swallows the light. Each tap turns them a quarter turn.",
     35: "New: portals. Light entering a portal comes out of its partner portal in the same direction.",
     22: "New: glass beam splitters let light through and reflect it at the same time. Every lens must glow.",
@@ -832,6 +857,7 @@ function loadLevel(n) {
     3: "Verdreht? ↶ oder Z nimmt den letzten Zug zurück. Festgefahren? ? zeigt einen Tipp.",
     4: "Spiegel mit Nieten sind festgeschraubt.",
     7: "Nicht jeder Spiegel liegt auf dem Weg.",
+    61: "Neues Kapitel – Doppelte Wege: zwei Portalpaare, Ringfarbe und Punkte zeigen, welche zusammengehören. Prismen warten jetzt auch hinter Portalen.",
     45: "Neu: Prismen spiegeln nur auf ihrer hellen Seite, die dunkle Rückseite schluckt das Licht. Jedes Tippen dreht sie um eine Vierteldrehung.",
     35: "Neu: Portale. Licht, das in ein Portal fällt, kommt am Partnerportal in derselben Richtung wieder heraus.",
     22: "Neu: Strahlteiler aus Glas lassen das Licht durch und spiegeln es zugleich. Jede Linse muss leuchten.",
@@ -839,7 +865,7 @@ function loadLevel(n) {
   };
   $("hint").textContent = hints[n] || ""; $("hint").style.opacity = hints[n] ? 1 : 0;
   // Neue Mechanik: die neuen Teile auf dem Brett ein paar Sekunden pulsieren lassen, den Hinweis heller zeigen
-  const intro = { [GATE_LEVEL]: GATE, [SPLIT_LEVEL]: SPLIT, [PORTAL_LEVEL]: PORTAL, [PRISM_LEVEL]: PRISM }[n];
+  const intro = { [GATE_LEVEL]: GATE, [SPLIT_LEVEL]: SPLIT, [PORTAL_LEVEL]: PORTAL, [PRISM_LEVEL]: PRISM, [DUO_LEVEL]: PORTAL }[n];
   introCells = intro !== undefined ? L.grid.flat().filter(c => c.t === intro) : []; introUntil = performance.now() + 6000;
   $("hint").classList.toggle("new", !!introCells.length);
   layout();
@@ -1064,7 +1090,7 @@ function editStatus() {
   editMsg(tx("Baue den Lösungsweg: Das Licht muss durch alle Kristalle in jede Linse. Nochmal tippen dreht oder färbt um.", "Build the solution: the light must pass every crystal into every lens. Tap again to turn or recolour."));
 }
 function openEditor(level) {
-  mode = "edit"; won = false; clearTimeout(winTimer); $("win").classList.remove("show"); $("unpeek").hidden = true; closeLevels();
+  mode = "edit"; won = false; clearTimeout(winTimer); $("win").classList.remove("show"); $("unpeek").hidden = true; document.body.classList.remove("peeking"); closeLevels();
   L = level || decodeLevel(store.get("lichtweg-editor") || "", true) || EDIT_DEFAULT();
   T = trace(L); shown = 0; particles = []; litPrev = new Set(); undoStack = []; editHistory = []; updateUndo(); cursorOn = false;
   setHash("#bauen");
@@ -1537,11 +1563,11 @@ function frame(now) {
       ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.fill();
       ctx.lineWidth = Math.max(1.5, cs * .04); ctx.setLineDash([cs * .13, cs * .07]);
       for (const [rr, sp, a] of [[.95, .8, on ? .95 : .6], [.58, -1.3, on ? .8 : .4]]) {
-        ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * sp + c.id); ctx.strokeStyle = `rgba(205,195,255,${a})`;
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * sp + c.id); ctx.strokeStyle = `rgba(${PORTAL_RGB[c.id % 4]},${a})`;
         ctx.beginPath(); ctx.arc(0, 0, r * rr, 0, 6.283); ctx.stroke(); ctx.restore();
       }
       ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(225,215,255,.85)";      // Punkte zeigen, welche Portale zusammengehören
+      ctx.fillStyle = `rgba(${PORTAL_RGB[c.id % 4]},.9)`;      // Farbe und Punkte zeigen, welche Portale zusammengehören
       for (let k = 0; k <= c.id; k++) { ctx.beginPath(); ctx.arc(cx + (k - c.id / 2) * cs * .11, cy + cs * .43, Math.max(1.2, cs * .03), 0, 6.283); ctx.fill(); }
     } else if (c.t === SRC) {
       const pulse = 1 + .08 * Math.sin(t * 3);
@@ -1697,7 +1723,9 @@ function describeBoard() {
   const gates = all.filter(c => c.t === GATE);
   if (gates.length) parts.push(tx("Tore: ", "Gates: ") + gates.map(c => `${c.shape < 0 ? tx("golden", "gold") : shapes[c.shape]} ${at(c)}${T.blocked.includes(c) ? tx(", blockiert", ", blocking") : ""}`).join("; ") + ".");
   const ports = all.filter(c => c.t === PORTAL);
-  if (ports.length) parts.push(tx("Portale: ", "Portals: ") + ports.map(at).join("; ") + ".");
+  const pairIds = [...new Set(ports.map(c => c.id))].sort();
+  if (pairIds.length === 1) parts.push(tx("Portale: ", "Portals: ") + ports.map(at).join("; ") + ".");
+  else if (pairIds.length) parts.push(pairIds.map((id, i) => tx(`Portalpaar ${i + 1}: `, `Portal pair ${i + 1}: `) + ports.filter(c => c.id === id).map(at).join(tx(" und ", " and "))).join("; ") + ".");
   parts.push(tx(`Linsen ${L.recvs.filter(c => on.has(c)).length} von ${L.recvs.length} erreicht: `, `Lenses ${L.recvs.filter(c => on.has(c)).length} of ${L.recvs.length} reached: `)
     + L.recvs.map(c => `${at(c)}, ${lit(c)}`).join("; ") + ".");
   const turn = all.filter(rotatable).length, fixed = all.filter(c => c.t === MIRROR && c.locked).length;
@@ -1893,10 +1921,10 @@ $("remix").onclick = remix;
 // Knopf direkt unter das Brett, nie darüber (quer: links in der Spalte, per CSS)
 function placeUnpeek() { if (L) $("unpeek").style.top = Math.min(innerHeight - 52, oy + L.size * cs + 18) + "px"; }
 function peek() {
-  $("win").classList.remove("show"); $("unpeek").hidden = false; placeUnpeek(); $("unpeek").focus({ preventScroll: true });
+  $("win").classList.remove("show"); $("unpeek").hidden = false; document.body.classList.add("peeking"); placeUnpeek(); $("unpeek").focus({ preventScroll: true });
   say(tx("Brett frei. „Ergebnis“ oder Esc holt die Karte zurück.", "Board in view. “Result” or Esc brings the card back."));
 }
-function unpeek() { $("unpeek").hidden = true; $("win").classList.add("show"); $("go").focus({ preventScroll: true }); }
+function unpeek() { $("unpeek").hidden = true; document.body.classList.remove("peeking"); $("win").classList.add("show"); $("go").focus({ preventScroll: true }); }
 $("peek").onclick = peek; $("unpeek").onclick = unpeek;
 $("go").onclick = proceed;
 $("share").onclick = shareDaily;
