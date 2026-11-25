@@ -314,7 +314,9 @@ if (engine === "chromium") {
   let dialogSeen = "";
   a.once("dialog", d => { dialogSeen = d.type(); d.accept(code); });
   // Gewinnkarte des Tagesrätsels liegt noch über dem Titel: schließen und die Übersicht direkt öffnen
-  await a.evaluate(() => { $("win").classList.remove("show"); openLevels(); });
+  // (auch den Zeitgeber, der die Karte 1,1 s nach dem Lösen erst einblendet – sonst legt sie sich wieder darüber)
+  await a.evaluate(() => { clearTimeout(winTimer); $("win").classList.remove("show"); openLevels(); });
+  await a.waitForSelector("#levels.show #restore");
   await a.click("#restore", { noWaitAfter: true });   // Tab lädt danach neu
   const heard = await b.waitForFunction(() => save.unlocked === 1, null, { timeout: 8000 }).then(() => true, () => false);
   check("Anderer Tab hört den geladenen Spielstand sofort (ohne eigenes Speichern)", heard);
