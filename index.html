@@ -103,6 +103,10 @@
   #tools select option { background:#10142a; }
   #tools button.sel { border-color:var(--gold); background:rgba(255,210,122,.2); color:var(--gold); }
   #hint.new { color:var(--ink); }
+  /* Gelöstes Brett ansehen: die Karte weicht, ein kleiner Knopf holt sie zurück */
+  #unpeek { position:fixed; left:50%; transform:translateX(-50%); z-index:4; }
+  #unpeek[hidden] { display:none; }
+  body.land #unpeek { left:max(16px, env(safe-area-inset-left)); transform:none; top:110px !important; }
   /* Erste Schritte: kleine Beschriftungen unter den Symbolen, bis Level 2 geschafft ist */
   #hud.labels > .ctrl button { position:relative; }
   #hud.labels > .ctrl button::before { content:attr(data-label); position:absolute; top:calc(100% + 3px); left:50%; transform:translateX(-50%);
@@ -188,7 +192,9 @@
   <div class="stars" id="winStars"></div>
   <p id="winText"></p>
   <div class="ctrl"><button id="again">Nochmal</button><button id="share" class="primary">Teilen</button><button id="shot" title="Bild des gelösten Bretts teilen">Bild</button><button id="qrBtn" title="Als QR-Code zeigen">QR</button><button id="remix" title="Dieses Level im Editor öffnen und abwandeln">Bearbeiten</button><button id="go" class="primary">Weiter →</button></div>
+  <div class="ctrl minor"><button id="peek" title="Karte ausblenden und die gelöste Lichtbahn ansehen (Esc)">Brett ansehen</button></div>
 </div></div>
+<button id="unpeek" hidden>Ergebnis ▴</button>
 
 <script>
 "use strict";
@@ -730,7 +736,7 @@ function decodeLevel(code, loose = false) {
 }
 
 function startPlay(level, startMoves = 0) {
-  $("tools").hidden = true; $("stats").style.visibility = ""; $("hint").classList.remove("new");
+  $("tools").hidden = true; $("stats").style.visibility = ""; $("hint").classList.remove("new"); $("unpeek").hidden = true;
   L = level; T = trace(L); shown = 0; moves = startMoves; won = false; litPrev = new Set(); particles = [];
   undoStack = []; cursor = null; updateUndo(); tipCell = null;
   for (const c of L.grid.flat()) if (c.t === MIRROR || c.t === SPLIT) c.solO = c.flipped ? c.o ^ 1 : c.o;   // Lösung merken
@@ -1049,7 +1055,7 @@ function editStatus() {
   editMsg(tx("Baue den Lösungsweg: Das Licht muss durch alle Kristalle in jede Linse. Nochmal tippen dreht oder färbt um.", "Build the solution: the light must pass every crystal into every lens. Tap again to turn or recolour."));
 }
 function openEditor(level) {
-  mode = "edit"; won = false; clearTimeout(winTimer); $("win").classList.remove("show"); closeLevels();
+  mode = "edit"; won = false; clearTimeout(winTimer); $("win").classList.remove("show"); $("unpeek").hidden = true; closeLevels();
   L = level || decodeLevel(store.get("lichtweg-editor") || "", true) || EDIT_DEFAULT();
   T = trace(L); shown = 0; particles = []; litPrev = new Set(); undoStack = []; editHistory = []; updateUndo(); cursorOn = false;
   setHash("#bauen");
@@ -1328,7 +1334,7 @@ function layout() {
   ox = Math.round((W - cs * L.size) / 2); oy = Math.round(top + (H - top - bottom - cs * L.size) / 2);
   for (let y = 0; y < L.size; y++) for (let x = 0; x < L.size; x++) { const c = L.grid[y][x]; c._x = ox + (x + .5) * cs; c._y = oy + (y + .5) * cs; }
 }
-addEventListener("resize", layout);
+addEventListener("resize", () => { layout(); if (!$("unpeek").hidden) placeUnpeek(); });
 
 const X = u => ox + u * cs, Y = u => oy + u * cs;
 // Jeder Kristall hat eine eigene Form, damit man sie nicht nur an der Farbe unterscheidet.
@@ -1796,6 +1802,10 @@ addEventListener("keydown", ev => {
   if ((ev.ctrlKey || ev.metaKey) && k === "z") { ev.preventDefault(); undo(); return; }
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
   if ($("qrBox").classList.contains("show")) { if (k === "escape") closeQR(); return; }
+  if (k === "escape" && won && mode !== "edit" && !$("levels").classList.contains("show")) {
+    if ($("win").classList.contains("show")) peek(); else if (!$("unpeek").hidden) unpeek();
+    return;
+  }
   if ($("levels").classList.contains("show")) {
     const g = ev.target.closest?.("#levelGrid, #cal");
     if (g && k in ARROWS) { ev.preventDefault(); gridMove(ev.target, ARROWS[k]); }
@@ -1845,6 +1855,14 @@ const LABELS = EN ? { daily: "Today", prev: "Back", undo: "Undo", reset: "Restar
 for (const [id, t] of Object.entries(LABELS)) $(id).dataset.label = t;
 function updateLabels() { $("hud").classList.toggle("labels", save.unlocked <= 2 && mode === "level"); }
 $("remix").onclick = remix;
+// Knopf direkt unter das Brett, nie darüber (quer: links in der Spalte, per CSS)
+function placeUnpeek() { if (L) $("unpeek").style.top = Math.min(innerHeight - 52, oy + L.size * cs + 18) + "px"; }
+function peek() {
+  $("win").classList.remove("show"); $("unpeek").hidden = false; placeUnpeek(); $("unpeek").focus({ preventScroll: true });
+  say(tx("Brett frei. „Ergebnis“ oder Esc holt die Karte zurück.", "Board in view. “Result” or Esc brings the card back."));
+}
+function unpeek() { $("unpeek").hidden = true; $("win").classList.add("show"); $("go").focus({ preventScroll: true }); }
+$("peek").onclick = peek; $("unpeek").onclick = unpeek;
 $("go").onclick = proceed;
 $("share").onclick = shareDaily;
 $("build").onclick = () => openEditor();
@@ -1896,6 +1914,7 @@ if (EN) {
   $("cal").setAttribute("aria-label", "Daily puzzles of the last four weeks");
   set("qrTitle", "Scan to play"); set("qrClose", "Close"); $("qrCanvas").setAttribute("aria-label", "QR code");
   set("qrBtn", null, "Show as QR code"); set("eqr", null, "Show as QR code");
+  set("peek", "View board", "Hide the card and look at the solved light path (Esc)"); set("unpeek", "Result ▴");
   set("remix", "Edit"); $("remix").title = "Open this level in the editor to make your own version";
   set("shot", "Picture"); $("shot").title = "Share a picture of the solved board";
   set("winTitle", "Light found"); set("again", "Again"); set("share", "Share"); set("go", "Next →");

@@ -121,6 +121,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   Linsen, jetzt steht „Ziel: 1 Zug“. Die Symbole oben tragen bis zum Abschluss von Level 2 kleine Beschriftungen
   (Heute, Zurück, Neu, Tipp, Ton …). Wer in den ersten drei Leveln übers Ziel hinausdreht, bekommt Rückgängig und Tipp
   genau dann erklärt – einmal.
+- **v29.3 – Brett ansehen:** Die Gewinnkarte verdeckte die gelöste Lichtbahn. „Brett ansehen“ (oder Esc) blendet sie
+  aus, ein kleiner Knopf „Ergebnis“ direkt unter dem Brett (quer: links in der Spalte) holt sie zurück.
 
 ## Als Nächstes
 

@@ -57,6 +57,19 @@ const solve = p => p.evaluate(() => { for (const c of L.grid.flat()) if (c.t ===
   const said = await p.evaluate(() => [$("sr").textContent, document.activeElement.id]);
   check("Gewinn-Ansage nennt Sterne und Züge", /Gelöst! \d von 3 Sternen\. \d+ Zug/.test(said[0]), said[0]);
   check("Gewinnkarte bekommt den Fokus", ["go", "again"].includes(said[1]), said[1]);
+  // Brett ansehen: Karte weicht, die Mitte des Bretts ist frei, Esc und „Ergebnis“ holen sie zurück
+  await p.click("#peek");
+  await p.waitForFunction(() => getComputedStyle($("win")).visibility === "hidden");
+  const pk = await p.evaluate(() => { const r = $("c").getBoundingClientRect();
+    return { top: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.id, btn: !$("unpeek").hidden, f: document.activeElement.id }; });
+  check("Brett ansehen: Karte weg, Brett frei, Knopf zurück da", pk.top === "c" && pk.btn && pk.f === "unpeek", JSON.stringify(pk));
+  await p.keyboard.press("Escape");
+  const back = await p.evaluate(() => [$("win").classList.contains("show"), $("unpeek").hidden, document.activeElement.id]);
+  check("Esc holt die Karte zurück, Fokus auf Weiter", back[0] && back[1] && back[2] === "go", back.join());
+  await p.keyboard.press("Escape"); await p.click("#unpeek");
+  const back2 = await p.evaluate(() => $("win").classList.contains("show") && $("unpeek").hidden);
+  await p.click("#go"); await p.waitForFunction(() => L.n === 2);
+  check("„Ergebnis“ holt sie ebenso, nächstes Level räumt den Knopf weg", back2 && await p.evaluate(() => $("unpeek").hidden));
   check("Keine Fehler beim Spielen", !p.errors.length, p.errors.join(" | "));
   await p.context().close();
 }

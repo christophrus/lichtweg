@@ -40,6 +40,7 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
   Ein Titel (optional) reist im Link mit und erscheint beim Empfänger oben.
   „QR“ zeigt den Link als QR-Code, zum Scannen von Handy zu Handy (eigener Encoder, keine Bibliothek).
   Jedes gelöste Level lässt sich über „Bearbeiten“ auf der Gewinnkarte im Editor abwandeln.
+  „Brett ansehen“ (oder Esc) blendet die Gewinnkarte aus, damit man die fertige Lichtbahn in Ruhe sieht.
   Mit Tastatur: Pfeile wandern Feld für Feld, Ziffern wählen das Werkzeug, Leertaste setzt es, `Entf` radiert, `Z` nimmt zurück, `B` beschreibt das Brett.
 - **Portale** (ab Level 35): Licht, das in ein Portal fällt, kommt am Partner in derselben Richtung wieder heraus.
   Punkte unter dem Ring zeigen, welche Portale zusammengehören. Der Generator legt dafür einen Umweg mit neuen Spiegeln
