@@ -93,3 +93,7 @@ hints. Everything runs offline in the browser, with no accounts and no tracking.
 
 In der Levelübersicht öffnet „Rückmeldung“ ein GitHub-Issue, vorausgefüllt mit dem Level, in dem du gerade bist.
 Was zu schwer, zu selten oder unklar ist, landet so direkt bei der Planung.
+
+## Lizenz
+
+MIT – siehe [LICENSE](LICENSE). Forken, abwandeln und weitergeben ist ausdrücklich erwünscht.
