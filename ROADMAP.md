@@ -123,6 +123,10 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   genau dann erklärt – einmal.
 - **v29.3 – Brett ansehen:** Die Gewinnkarte verdeckte die gelöste Lichtbahn. „Brett ansehen“ (oder Esc) blendet sie
   aus, ein kleiner Knopf „Ergebnis“ direkt unter dem Brett (quer: links in der Spalte) holt sie zurück.
+- **v29.4 – Tastatur und Vorleser:** Ein Tastatur-Durchgang (Sonnet-Sub-Agent) fand drei Lücken. Jedes Level wird
+  jetzt angesagt (Name, Größe, Ziel) statt nur „Kristall leuchtet“, das bis zum ersten Zug schweigt. Der Tipp per H
+  setzt den Cursor auf das falsche Teil, Leertaste dreht es sofort. Nach „Weiter“ und Esc in der Übersicht bleibt der
+  Fokus nicht mehr auf einem versteckten Knopf, den die Leertaste sonst noch einmal ausgelöst hätte.
 
 ## Als Nächstes
 

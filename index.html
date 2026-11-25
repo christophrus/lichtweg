@@ -744,7 +744,13 @@ function startPlay(level, startMoves = 0) {
   clearTimeout(winTimer); $("win").classList.remove("show");
   $("par").textContent = L.par; $("parUnit").textContent = mv(L.par); $("moves").textContent = moves;   // „Ziel: 1 Zug“, nicht als Linsenzahl lesbar
   updateDailyBadge(); layout();
+  // Fokus nie auf einem unsichtbaren Knopf lassen: Leertaste würde ihn sonst noch einmal auslösen
+  if (document.activeElement?.closest?.("#win")) document.activeElement.blur();
+  // Vorlesen, was jetzt da ist (der Titel steht erst nach startPlay fest); Kristall-Ansagen schweigen bis zum ersten Zug
+  quietLit = true; const n0 = sayN;
+  setTimeout(() => { if (L === level && !won && sayN === n0) say(`${$("lvl").textContent.replace(/★/g, "").trim()}. ${L.size} × ${L.size}. ${tx("Ziel", "Target")}: ${L.par} ${mv(L.par)}.`); }, 60);
 }
+let quietLit = false;
 
 // Archiv: vergangene Tagesrätsel nachholen. Sie erscheinen im Kalender, ändern aber weder Serie noch heutigen Stand.
 const isPastDay = t => dayNumber(t) >= 1 && dayKey(t) < dayKey(dayOf(new Date()));
@@ -865,11 +871,13 @@ function editUndo() {
   L = decodeLevel(editHistory.pop(), true); T = trace(L); shown = 0; $("esize").value = L.size;
   layout(); saveDraft(); editStatus(); updateUndo(); tone(260, .08, .05, "triangle");
 }
-const say = msg => { $("sr").textContent = ""; setTimeout(() => { $("sr").textContent = msg; }, 40); };
+let sayN = 0;   // zählt Ansagen, damit die Level-Ansage nichts Wichtigeres überschreibt
+const say = msg => { sayN++; $("sr").textContent = ""; setTimeout(() => { $("sr").textContent = msg; }, 40); };
 
 // isUndo: Zug zurücknehmen. Das zählt minus eins, nur im Tagesrätsel als eigener Zug (fair bleibt fair).
 function flip(c, isUndo = false) {
   if (won || !rotatable(c)) return;
+  quietLit = false;
   if (c === tipCell) tipUntil = 0;
   if (c.t === PRISM) c.r = (c.r + (isUndo ? 3 : 1)) % 4; else c.o ^= 1;
   if (isUndo) c.target -= Math.PI / 2; else { c.target += Math.PI / 2; undoStack.push(c); }
@@ -894,7 +902,7 @@ function flip(c, isUndo = false) {
 // Tipp: zeigt das erste Teil, an dem das Licht vom Lösungsweg abkommt. Kostet einen Zug.
 let tipCell = null, tipUntil = 0;
 const wrongPiece = c => rotatable(c) && (c.t === PRISM ? c.r !== c.sol : c.solO !== undefined && c.o !== c.solO);
-function showTip() {
+function showTip(byKey = false) {
   if (won || !L || L.custom || mode === "edit") return;
   let pick = null;
   for (const b of [...T.beams].sort((a, b) => a.start - b.start)) {
@@ -904,6 +912,7 @@ function showTip() {
   pick ||= L.grid.flat().find(wrongPiece);
   if (!pick) return;
   tipCell = pick; tipUntil = performance.now() + 2800;
+  cursor = { x: pick.x, y: pick.y }; if (byKey) cursorOn = true;   // Tastatur: Leertaste dreht jetzt genau dieses Teil
   moves++; $("moves").textContent = moves;
   if (mode === "daily" && !L.archive && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
   say(tx(`Tipp: Das Teil in Spalte ${pick.x + 1}, Reihe ${pick.y + 1} steht falsch. Das kostet einen Zug.`, `Hint: the piece in column ${pick.x + 1}, row ${pick.y + 1} is turned wrong. That costs one move.`));
@@ -1439,7 +1448,7 @@ function frame(now) {
   const lit = new Set(); for (const e of T.events) if (e.dist <= shown) lit.add(e.cell);
   droneTick(new Set([...lit].filter(c => c.t === CRYSTAL).map(c => c.shape)));
   for (const c of lit) if (!litPrev.has(c) && c.t === CRYSTAL) { bell(note(L.crystals.indexOf(c) + 2), 0, .09); burst(c._x, c._y, c.hue, 26); buzz(14);
-    say(tx(`Kristall leuchtet: ${L.crystals.filter(k => lit.has(k)).length} von ${L.crystals.length}`, `Crystal lit: ${L.crystals.filter(k => lit.has(k)).length} of ${L.crystals.length}`)); }
+    if (!quietLit) say(tx(`Kristall leuchtet: ${L.crystals.filter(k => lit.has(k)).length} von ${L.crystals.length}`, `Crystal lit: ${L.crystals.filter(k => lit.has(k)).length} of ${L.crystals.length}`)); }
   litPrev = lit;
   if (!won && mode !== "edit" && shown >= T.dist && isSolved(L, T)) onWin();
   if (T.blocked.length && shown >= T.dist && !T.signaled) { T.signaled = true; tone(146, .35, .07, "sine"); tone(110, .45, .05, "triangle"); buzz(30); say(tx("Ein Farbtor blockiert das Licht.", "A colour gate blocks the light.")); }
@@ -1765,7 +1774,8 @@ function dailyStats() {
   return { solved: keys.length, best, perfect: keys.filter(k => save.daily.results[k].stars === 3).length };
 }
 let levelsReturn = null;
-function closeLevels() { if (!$("levels").classList.contains("show")) return; $("levels").classList.remove("show"); levelsReturn?.focus?.(); levelsReturn = null; }
+function closeLevels() { if (!$("levels").classList.contains("show")) return; $("levels").classList.remove("show"); levelsReturn?.focus?.(); levelsReturn = null;
+  if (document.activeElement?.closest?.("#levels")) document.activeElement.blur(); }
 
 const ARROWS = { arrowright: 0, arrowdown: 1, arrowleft: 2, arrowup: 3 };
 // Offener Dialog: Tab bleibt drin (aria-modal verspricht das), sonst landet man bei den Knöpfen dahinter
@@ -1826,7 +1836,7 @@ addEventListener("keydown", ev => {
   else if (k === "z" || k === "backspace") undo();
   else if (k === "t") toggleDaily();
   else if (k === "m") toggleMute();
-  else if (k === "h") showTip();
+  else if (k === "h") showTip(true);
   else if (k === "b") say(describeBoard());
   else if (k === "l") openLevels();
   else if (k === "n") won ? proceed() : nextLevel();
@@ -1842,7 +1852,7 @@ $("levels").addEventListener("pointerdown", ev => { if (ev.target === $("levels"
 // Nach Mausklick den Fokus vom Button nehmen, damit Leertaste wieder den Spiegel dreht
 document.addEventListener("pointerup", ev => { const b = ev.target.closest("button"); if (b) b.blur(); });
 $("reset").onclick = restart;
-$("tip").onclick = showTip;
+$("tip").onclick = ev => showTip(ev.detail === 0);   // detail 0: per Tastatur ausgelöst
 $("shot").onclick = shareBoard;
 $("qrBtn").onclick = () => showQR(currentLink());
 $("eqr").onclick = () => { const code = scrambleForShare(); if (code) showQR(levelLink(withTitle(code))); };

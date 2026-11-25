@@ -386,6 +386,32 @@ if (engine === "chromium") {
   await p.context().close();
 }
 
+// 15. Tastatur und Vorleser: Level wird angesagt, Tipp setzt den Cursor, kein Fokus auf versteckten Knöpfen
+{
+  const p = await page();
+  await p.goto(base);
+  await p.waitForFunction(() => typeof L !== "undefined" && L);
+  await p.waitForFunction(() => /^Level 1\. 5 × 5\. Ziel: \d+ Zug/.test($("sr").textContent), null, { timeout: 4000 }).catch(() => {});
+  const intro = await p.textContent("#sr");
+  check("Level wird beim Start angesagt (Name, Größe, Ziel)", /^Level 1\. 5 × 5\. Ziel: \d+ Zug/.test(intro), intro);
+  await p.keyboard.press("h");
+  const tc = await p.evaluate(() => [tipCell && cursor && tipCell.x === cursor.x && tipCell.y === cursor.y]);
+  await p.keyboard.press("Space");
+  const fixed = await p.evaluate(() => tipCell.o === tipCell.solO);
+  check("Tipp setzt den Cursor, Leertaste dreht genau das Teil", tc[0] && fixed, JSON.stringify({ tc, fixed }));
+  await p.waitForSelector("#win.show", { timeout: 8000 });
+  await p.keyboard.press("Enter");   // Fokus liegt auf „Weiter“
+  await p.waitForFunction(() => L.n === 2);
+  const ae = await p.evaluate(() => document.activeElement.closest("#win") ? document.activeElement.id : "frei");
+  check("Nach „Weiter“ bleibt kein Fokus in der versteckten Karte", ae === "frei", ae);
+  await p.keyboard.press("l"); await p.waitForSelector("#levels.show");
+  await p.keyboard.press("Tab"); await p.keyboard.press("Escape");
+  const ae2 = await p.evaluate(() => document.activeElement.closest("#levels") ? document.activeElement.id || document.activeElement.textContent : "frei");
+  check("Nach Esc in der Übersicht bleibt kein Fokus darin", ae2 === "frei", ae2);
+  check("Tastatur-Durchgang ohne Fehler", !p.errors.length, p.errors.join(" | "));
+  await p.context().close();
+}
+
 // 12. Speichern direkt vor einem Neuladen (Spielstand laden, Sprache wechseln) geht nicht verloren – 5 Versuche
 {
   let lost = [], langLost = 0;
