@@ -134,6 +134,9 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   Werkzeuge tragen `aria-pressed`, Esc auf einem Knopf gibt die Pfeile ans Baufeld zurück, Ziffern im Größenfeld wählen
   kein Werkzeug mehr. Das Spielfeld beschreibt im Editor sich selbst passend; die Ansage nachgeholter Tagesrätsel hat
   keinen doppelten Punkt mehr.
+- **v29.7 – Raster mit einem Tab-Halt:** Levelübersicht und Kalender sind je ein Tab-Halt (roving tabindex), darin wandern
+  die Pfeile. Rechts/links am Zeilenende geht es in Lesereihenfolge weiter statt in eine andere Woche zu springen.
+  Kalendertage nennen den Wochentag („Tagesrätsel Sonntag, 29.11.: offen“).
 
 ## Als Nächstes
 

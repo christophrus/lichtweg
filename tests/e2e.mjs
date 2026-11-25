@@ -410,6 +410,11 @@ if (engine === "chromium") {
   await p.keyboard.press("Home");
   const homeTo = await p.evaluate(() => document.activeElement.textContent.trim());
   check("Übersicht: Ende/Pos1 springen zum letzten/ersten offenen Level", /^2/.test(endTo) && /^1/.test(homeTo), endTo + " / " + homeTo);
+  const rv = await p.evaluate(() => { const t = id => [...$(id).querySelectorAll("button:not(:disabled)")].filter(b => b.tabIndex === 0).length;
+    const days = [...$("cal").querySelectorAll("button")]; days.at(-1).focus();
+    return { grid: t("levelGrid"), cal: t("cal"), days: days.length, label: days.at(-1).getAttribute("aria-label"), after: t("cal"), on: days.at(-1).tabIndex }; });
+  check("Raster: je ein Tab-Halt, Kalendertage mit Wochentag", rv.grid === 1 && rv.cal === 1 && rv.days >= 2 && rv.after === 1 && rv.on === 0
+    && /^Tagesrätsel (Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag), /.test(rv.label), JSON.stringify(rv));
   await p.keyboard.press("Escape");
   const ae2 = await p.evaluate(() => document.activeElement.closest("#levels") ? document.activeElement.id || document.activeElement.textContent : "frei");
   check("Nach Esc in der Übersicht bleibt kein Fokus darin", ae2 === "frei", ae2);

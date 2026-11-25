@@ -1761,10 +1761,12 @@ function openLevels() {
       e.className = (r ? "s" + r.stars : "") + (r?.late ? " late" : "") + (i === 0 ? " today" : "");
       const label = `${tx(`${d.d}.${d.m}.`, `${d.m}/${d.d}`)}: ${r ? starText(r.stars) + (r.late ? tx(", nachgeholt", ", caught up") : "") : tx("offen", "open")}`;
       e.title = label;
-      if (open) { e.setAttribute("aria-label", tx(`Tagesrätsel ${label}`, `Daily ${label}`)); e.onclick = () => { closeLevels(); loadDaily(i ? d : null); }; }
+      const wdName = tx(["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"], ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"])[new Date(d.y, d.m - 1, d.d).getDay()];
+      if (open) { e.setAttribute("aria-label", tx(`Tagesrätsel ${wdName}, ${label}`, `Daily ${wdName}, ${label}`)); e.onclick = () => { closeLevels(); loadDaily(i ? d : null); }; }
       cal.append(e);
     }
   }
+  rove($("levelGrid"), $("levelGrid").querySelector("button.cur")); rove(cal, cal.querySelector("button.today"));
   levelsReturn = document.activeElement; $("levels").classList.add("show");
   ($("levelGrid").querySelector("button.cur") || $("closeLevels")).focus({ preventScroll: true });
   const cur = g.querySelector(".cur") || g.querySelectorAll("button:not(:disabled)")[save.unlocked - 1];
@@ -1789,7 +1791,7 @@ const ARROWS = { arrowright: 0, arrowdown: 1, arrowleft: 2, arrowup: 3 };
 // Offener Dialog: Tab bleibt drin (aria-modal verspricht das), sonst landet man bei den Knöpfen dahinter
 const openDialog = () => ["qrBox", "levels", "win"].map($).find(e => e.classList.contains("show"))?.querySelector(".card");
 const focusables = box => [...box.querySelectorAll("button, input, select, a[href], textarea")]
-  .filter(e => !e.disabled && !e.hidden && e.getClientRects().length && getComputedStyle(e).visibility !== "hidden");
+  .filter(e => !e.disabled && e.tabIndex >= 0 && !e.hidden && e.getClientRects().length && getComputedStyle(e).visibility !== "hidden");
 function trapTab(ev) {
   const box = openDialog(); if (!box) return false;
   const f = focusables(box); if (!f.length) return false;
@@ -1811,8 +1813,19 @@ function gridMove(el, dir) {
     const d = across < 4 ? along : along + across * 4 + 1e4;   // gleiche Zeile/Spalte zuerst, sonst die nächste
     if (d < bd) { bd = d; best = b; }
   }
+  if (dir % 2 === 0 && bd >= 1e4) {   // links/rechts ohne Nachbarn in derselben Zeile: vorheriger/nächster Knopf
+    const all = [...box.querySelectorAll("button:not(:disabled)")], i = all.indexOf(el);
+    best = all[i + (dir === 0 ? 1 : -1)] || null;
+  }
   if (best) best.focus();
 }
+// Ein Tab-Halt pro Raster: der gewählte Knopf trägt tabindex 0, alle anderen -1 (Pfeile wandern darin)
+function rove(box, pick) {
+  const bs = [...box.querySelectorAll("button:not(:disabled)")]; if (!bs.length) return;
+  pick = bs.includes(pick) ? pick : bs[bs.length - 1];
+  for (const b of bs) b.tabIndex = b === pick ? 0 : -1;
+}
+for (const id of ["levelGrid", "cal"]) $(id).addEventListener("focusin", ev => { if (ev.target.tagName === "BUTTON") rove($(id), ev.target); });
 addEventListener("keydown", ev => {
   const k = ev.key.toLowerCase();
   if (k === "tab" && trapTab(ev)) return;
