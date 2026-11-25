@@ -103,6 +103,12 @@
   #tools select option { background:#10142a; }
   #tools button.sel { border-color:var(--gold); background:rgba(255,210,122,.2); color:var(--gold); }
   #hint.new { color:var(--ink); }
+  /* Erste Schritte: kleine Beschriftungen unter den Symbolen, bis Level 2 geschafft ist */
+  #hud.labels > .ctrl button { position:relative; }
+  #hud.labels > .ctrl button::before { content:attr(data-label); position:absolute; top:calc(100% + 3px); left:50%; transform:translateX(-50%);
+    font-size:10px; line-height:1; color:var(--dim); white-space:nowrap; pointer-events:none; }
+  #hud.labels #stats { margin-top:10px; }
+  body.land #hud.labels > .ctrl button::before { top:50%; left:auto; right:calc(100% + 6px); transform:translateY(-50%); }
   #toolmsg { color:var(--dim); font-size:13px; min-height:17px; text-align:center; max-width:640px; }
   .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
   @media (max-width: 560px) {
@@ -136,7 +142,7 @@
 <canvas id="c" role="img" aria-label="Spielfeld. Pfeiltasten wählen einen Spiegel, Leertaste dreht ihn, B beschreibt das Brett."></canvas>
 <div id="hud">
   <button class="title" id="titleBtn" title="Levelübersicht (L)">Lichtweg<small id="lvl">Level 1</small></button>
-  <div id="stats">Züge <b id="moves">0</b> · Ziel <b id="par">0</b></div>
+  <div id="stats">Züge <b id="moves">0</b> · Ziel: <b id="par">0</b> <span id="parUnit">Züge</span></div>
   <div class="ctrl">
     <button id="daily" title="Tagesrätsel (T)">☀</button>
     <button id="prev" title="Vorheriges Level (P)">‹</button>
@@ -724,13 +730,13 @@ function decodeLevel(code, loose = false) {
 }
 
 function startPlay(level, startMoves = 0) {
-  $("tools").hidden = true; $("stats").style.visibility = "";
+  $("tools").hidden = true; $("stats").style.visibility = ""; $("hint").classList.remove("new");
   L = level; T = trace(L); shown = 0; moves = startMoves; won = false; litPrev = new Set(); particles = [];
   undoStack = []; cursor = null; updateUndo(); tipCell = null;
   for (const c of L.grid.flat()) if (c.t === MIRROR || c.t === SPLIT) c.solO = c.flipped ? c.o ^ 1 : c.o;   // Lösung merken
   $("tip").hidden = !!L.custom;   // geteilte Level kennen ihre Lösung nicht
   clearTimeout(winTimer); $("win").classList.remove("show");
-  $("par").textContent = L.par; $("moves").textContent = moves;
+  $("par").textContent = L.par; $("parUnit").textContent = mv(L.par); $("moves").textContent = moves;   // „Ziel: 1 Zug“, nicht als Linsenzahl lesbar
   updateDailyBadge(); layout();
 }
 
@@ -869,6 +875,12 @@ function flip(c, isUndo = false) {
   T = nt;
   tone(330 + Math.random() * 40, .12, .08, "triangle"); tone(990, .05, .03, "sine"); buzz(8);
   if (mode === "level" && L.n <= 2 && moves >= 1) $("hint").style.opacity = .55;
+  // Wer in den ersten Leveln übers Ziel hinausdreht, bekommt Rückgängig und Tipp genau dann erklärt (einmal)
+  if (!isUndo && mode === "level" && L.n <= 3 && moves > L.par && !save.undoHinted && !isSolved(L, nt)) {
+    save.undoHinted = true; persist();
+    const msg = tx("Verdreht? ↶ oder Z nimmt den letzten Zug zurück. Festgefahren? ? zeigt einen Tipp.", "Wrong turn? ↶ or Z takes back your last move. Stuck? ? shows a hint.");
+    $("hint").textContent = msg; $("hint").style.opacity = 1; $("hint").classList.add("new"); layout(); say(msg);
+  }
   if (cursorOn && cursor && cursor.x === c.x && cursor.y === c.y) say(describeCell(c));
   if (mode === "daily" && !L.archive && !save.daily.results[L.day]) { save.daily.progress = { day: L.day, moves }; persist(); }
 }
@@ -1297,6 +1309,7 @@ function layout() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR;
   if (!L) return;
+  updateLabels();
   const land = W > H && H <= 500, editing = !$("tools").hidden;
   document.body.classList.toggle("land", land);
   if (land) {   // quer: rechts die Knopfspalte, links Titel und Hinweis (im Editor die Werkzeuge), dazwischen das Brett
@@ -1826,6 +1839,11 @@ $("eqr").onclick = () => { const code = scrambleForShare(); if (code) showQR(lev
 $("qrClose").onclick = closeQR;
 $("qrBox").addEventListener("pointerdown", ev => { if (ev.target === $("qrBox")) closeQR(); });
 $("again").onclick = restart;
+// Beschriftungen für Einsteiger (Kurzwörter, damit sie nebeneinander passen)
+const LABELS = EN ? { daily: "Today", prev: "Back", undo: "Undo", reset: "Restart", tip: "Hint", next: "Next", mute: "Sound" }
+  : { daily: "Heute", prev: "Vorher", undo: "Zurück", reset: "Neu", tip: "Tipp", next: "Nächstes", mute: "Ton" };
+for (const [id, t] of Object.entries(LABELS)) $(id).dataset.label = t;
+function updateLabels() { $("hud").classList.toggle("labels", save.unlocked <= 2 && mode === "level"); }
 $("remix").onclick = remix;
 $("go").onclick = proceed;
 $("share").onclick = shareDaily;
@@ -1865,7 +1883,7 @@ if (EN) {
   const set = (id, text, title) => { const e = $(id); if (text != null) e.textContent = text; if (title) e.title = title; };
   $("c").setAttribute("aria-label", "Board. Arrow keys select a mirror, space turns it, B describes the board.");
   set("titleBtn", null, "Level overview (L)"); $("titleBtn").firstChild.textContent = "Lichtweg";
-  $("stats").innerHTML = 'Moves <b id="moves">0</b> · Target <b id="par">0</b>';
+  $("stats").innerHTML = 'Moves <b id="moves">0</b> · target: <b id="par">0</b> <span id="parUnit">moves</span>';
   set("daily", null, "Daily puzzle (T)"); set("prev", null, "Previous level (P)"); set("undo", null, "Undo (Z)");
   set("reset", null, "Restart (R)"); set("tip", null, "Hint: shows a wrongly turned piece, costs one move (H)");
   set("next", null, "Next level (N)"); set("mute", null, "Sound and vibration on/off (M)");

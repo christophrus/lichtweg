@@ -350,6 +350,27 @@ if (engine === "chromium") {
   await p.context().close();
 }
 
+// 14. Einsteiger: Ziel als Zugzahl, Beschriftungen bis Level 2, Rückgängig-Hinweis beim Überdrehen
+{
+  const p = await page();
+  await p.goto(base);
+  await p.waitForFunction(() => typeof L !== "undefined" && L);
+  const start = await p.evaluate(() => [$("stats").textContent, $("hud").classList.contains("labels"),
+    getComputedStyle($("tip"), "::before").content]);
+  check("Ziel steht als Zugzahl da", start[0] === "Züge 0 · Ziel: 1 Zug", start[0]);
+  check("Neue Spieler sehen Beschriftungen", start[1] && start[2] === '"Tipp"', start.slice(1).join(" "));
+  // Level 2 (Ziel 2): einen falschen Spiegel drehen, bis die Züge übers Ziel gehen
+  await p.evaluate(() => { save.unlocked = 2; loadLevel(2); });
+  await p.evaluate(() => { const w = L.grid.flat().find(c => rotatable(c) && c.solO === c.o) || L.grid.flat().find(rotatable);
+    for (let i = 0; i < 3 && !won; i++) flip(w); });
+  const h = await p.evaluate(() => [$("hint").textContent, save.undoHinted]);
+  check("Überdrehen erklärt Rückgängig und Tipp (einmal)", /Rückgängig|nimmt den letzten Zug/.test(h[0]) && h[1] === true, h[0]);
+  await p.evaluate(() => { save.unlocked = 3; loadLevel(3); });
+  check("Beschriftungen verschwinden nach Level 2", await p.evaluate(() => !$("hud").classList.contains("labels")));
+  check("Einsteiger-Hilfen ohne Fehler", !p.errors.length, p.errors.join(" | "));
+  await p.context().close();
+}
+
 // 12. Speichern direkt vor einem Neuladen (Spielstand laden, Sprache wechseln) geht nicht verloren – 5 Versuche
 {
   let lost = [], langLost = 0;

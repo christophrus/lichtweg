@@ -117,6 +117,10 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
 - **v29.1 – Neues zeigen, nicht nur sagen:** Ein Neuling-Durchgang (Sonnet-Sub-Agent mit Screenshots) fand, dass neue
   Mechaniken nur als blasser Satz am Rand erklärt werden. Jetzt pulsieren beim ersten Tor-, Teiler-, Portal- und
   Prisma-Level die neuen Teile ein paar Sekunden golden, und der „Neu:“-Hinweis steht heller.
+- **v29.2 – Einstieg klarer:** Drei weitere Punkte aus dem Neuling-Durchgang. „Ziel 1“ las sich wie eine Zahl von
+  Linsen, jetzt steht „Ziel: 1 Zug“. Die Symbole oben tragen bis zum Abschluss von Level 2 kleine Beschriftungen
+  (Heute, Zurück, Neu, Tipp, Ton …). Wer in den ersten drei Leveln übers Ziel hinausdreht, bekommt Rückgängig und Tipp
+  genau dann erklärt – einmal.
 
 ## Als Nächstes
 
