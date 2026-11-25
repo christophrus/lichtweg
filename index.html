@@ -743,12 +743,12 @@ function startPlay(level, startMoves = 0) {
   $("tip").hidden = !!L.custom;   // geteilte Level kennen ihre Lösung nicht
   clearTimeout(winTimer); $("win").classList.remove("show");
   $("par").textContent = L.par; $("parUnit").textContent = mv(L.par); $("moves").textContent = moves;   // „Ziel: 1 Zug“, nicht als Linsenzahl lesbar
-  updateDailyBadge(); layout();
+  updateDailyBadge(); layout(); boardLabel();
   // Fokus nie auf einem unsichtbaren Knopf lassen: Leertaste würde ihn sonst noch einmal auslösen
   if (document.activeElement?.closest?.("#win")) document.activeElement.blur();
   // Vorlesen, was jetzt da ist (der Titel steht erst nach startPlay fest); Kristall-Ansagen schweigen bis zum ersten Zug
   quietLit = true; const n0 = sayN;
-  setTimeout(() => { if (L === level && !won && sayN === n0) say(`${$("lvl").textContent.replace(/★/g, "").trim()}. ${L.size} × ${L.size}. ${tx("Ziel", "Target")}: ${L.par} ${mv(L.par)}.`); }, 60);
+  setTimeout(() => { if (L === level && !won && sayN === n0) say(`${$("lvl").textContent.replace(/★/g, "").trim().replace(/\.$/, "")}. ${L.size} × ${L.size}. ${tx("Ziel", "Target")}: ${L.par} ${mv(L.par)}.`); }, 60);
 }
 let quietLit = false;
 
@@ -1073,13 +1073,19 @@ function openEditor(level) {
   $("hint").textContent = ""; $("tools").hidden = false; $("esize").value = L.size;
   $("toolRow").innerHTML = "";
   for (const [id, label] of TOOLS) {
-    const b = document.createElement("button"); b.textContent = label; b.dataset.tool = id; b.className = id === tool ? "sel" : "";
+    const b = document.createElement("button"); b.textContent = label; b.dataset.tool = id; b.className = id === tool ? "sel" : ""; b.setAttribute("aria-pressed", id === tool);
     b.onclick = () => selectTool(id);
     const ti = TOOLS.findIndex(q => q[0] === id); b.title = `${label} (${ti < 10 ? (ti + 1) % 10 : tx("Entf", "Del")})`;
     $("toolRow").append(b);
   }
-  editStatus(); layout();
+  editStatus(); layout(); boardLabel();
+  if (document.activeElement?.closest?.("#win, #levels")) document.activeElement.blur();
+  say(tx("Level-Editor. Pfeile wählen ein Feld, Ziffern das Werkzeug, Leertaste setzt es, Esc verlässt einen Knopf.",
+    "Level editor. Arrows pick a cell, digits pick the tool, space places it, Esc leaves a button."));
 }
+const boardLabel = () => $("c").setAttribute("aria-label", mode === "edit"
+  ? tx("Baufeld. Pfeiltasten wählen ein Feld, Leertaste setzt das Werkzeug, B beschreibt das Brett.", "Building board. Arrow keys pick a cell, space places the tool, B describes the board.")
+  : tx("Spielfeld. Pfeiltasten wählen einen Spiegel, Leertaste dreht ihn, B beschreibt das Brett.", "Board. Arrow keys select a mirror, space turns it, B describes the board."));
 // Gelöstes Level im Editor abwandeln: Der gelöste Stand ist genau das, was der Editor als Lösung braucht
 function remix() {
   const lv = decodeLevel(encodeLevel(L), true); if (!lv) return;
@@ -1092,17 +1098,18 @@ function remix() {
   say(tx("Level im Editor geöffnet. Ändere es und teile deine Fassung.", "Level opened in the editor. Change it and share your version."));
 }
 function selectTool(id) {
-  tool = id; for (const o of $("toolRow").children) o.classList.toggle("sel", o.dataset.tool === id);
+  tool = id; for (const o of $("toolRow").children) { o.classList.toggle("sel", o.dataset.tool === id); o.setAttribute("aria-pressed", o.dataset.tool === id); }
   say(tx("Werkzeug: ", "Tool: ") + TOOLS.find(q => q[0] === id)[1]);
 }
 // Tastatur im Editor: Pfeile wandern Feld für Feld, Leertaste setzt das Werkzeug, Ziffern wählen es, Entf radiert.
 function editCursor(d) {
   if (!cursorOn || !cursor || cursor.x >= L.size || cursor.y >= L.size) { cursorOn = true; cursor = { x: Math.floor(L.size / 2), y: Math.floor(L.size / 2) }; }
   else cursor = { x: Math.max(0, Math.min(L.size - 1, cursor.x + DX[d])), y: Math.max(0, Math.min(L.size - 1, cursor.y + DY[d])) };
-  const c = L.grid[cursor.y][cursor.x], names = EN ? ["empty", "wall", "mirror", "crystal", "source", "lens", "gate", "splitter", "portal", "prism"]
-    : ["leer", "Wand", "Spiegel", "Kristall", "Quelle", "Linse", "Tor", "Teiler", "Portal", "Prisma"];
-  say(`${tx("Spalte", "Column")} ${cursor.x + 1}, ${tx("Reihe", "row")} ${cursor.y + 1}: ${names[c.t]}`);
+  say(cellSpot(L.grid[cursor.y][cursor.x]));
 }
+const CELLNAMES = () => EN ? ["empty", "wall", "mirror", "crystal", "source", "lens", "gate", "splitter", "portal", "prism"]
+  : ["leer", "Wand", "Spiegel", "Kristall", "Quelle", "Linse", "Tor", "Teiler", "Portal", "Prisma"];
+const cellSpot = c => `${tx("Spalte", "Column")} ${c.x + 1}, ${tx("Reihe", "row")} ${c.y + 1}: ${CELLNAMES()[c.t]}`;
 function editAt(c) {
   if (!c) return;
   const { x, y } = c; let t, prm = 0;
@@ -1138,6 +1145,7 @@ function editAt(c) {
   T = trace(L); shown = Math.min(shown, divergence(old, T));
   tone(300 + Math.random() * 60, .09, .06, "triangle"); buzz(6);
   layout(); saveDraft(); editStatus(); updateUndo();
+  if (cursorOn && cursor && cursor.x === x && cursor.y === y) say(`${cellSpot(L.grid[y][x])}. ${$("toolmsg").textContent}`);
 }
 function resizeEditor(size) {
   editSnapshot(); updateUndo();
@@ -1822,7 +1830,10 @@ addEventListener("keydown", ev => {
     if (g && (k === "home" || k === "end")) { ev.preventDefault(); const bs = g.querySelectorAll("button:not(:disabled)"); bs[k === "home" ? 0 : bs.length - 1]?.focus(); }   // erstes / letztes offenes
     if (k === "escape" || k === "l") closeLevels(); return; }
   if (mode === "edit") {
-    if (["BUTTON", "SELECT"].includes(ev.target.tagName) && (k === " " || k === "enter" || k in ARROWS)) return;
+    if (["BUTTON", "SELECT"].includes(ev.target.tagName)) {
+      if (k === "escape") { ev.target.blur(); say(tx("Zurück auf dem Baufeld.", "Back on the board.")); return; }   // Pfeile gehören wieder dem Cursor
+      if (k === " " || k === "enter" || k in ARROWS || (ev.target.tagName === "SELECT" && /^[0-9]$/.test(k))) return;
+    }
     if (k in ARROWS) { ev.preventDefault(); editCursor(ARROWS[k]); return; }
     if (k === " " || k === "enter") { ev.preventDefault(); if (cursorOn && cursor) editAt(L.grid[cursor.y][cursor.x]); else editCursor(0); return; }
     if (/^[0-9]$/.test(k)) { const tl = TOOLS[(+k + 9) % 10]; if (tl) selectTool(tl[0]); return; }
@@ -1910,7 +1921,6 @@ setInterval(updateDailyBadge, 60000);
 if (EN) {
   document.documentElement.lang = "en";
   const set = (id, text, title) => { const e = $(id); if (text != null) e.textContent = text; if (title) e.title = title; };
-  $("c").setAttribute("aria-label", "Board. Arrow keys select a mirror, space turns it, B describes the board.");
   set("titleBtn", null, "Level overview (L)"); $("titleBtn").firstChild.textContent = "Lichtweg";
   $("stats").innerHTML = 'Moves <b id="moves">0</b> · target: <b id="par">0</b> <span id="parUnit">moves</span>';
   set("daily", null, "Daily puzzle (T)"); set("prev", null, "Previous level (P)"); set("undo", null, "Undo (Z)");

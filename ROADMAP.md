@@ -129,6 +129,11 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   Fokus nicht mehr auf einem versteckten Knopf, den die Leertaste sonst noch einmal ausgelöst hätte.
 - **v29.5 – Übersicht per Tastatur:** `Pos1`/`Ende` springen zum ersten bzw. letzten offenen Level; der Vorleser sagt
   „1 Stern“ statt „1 Sterne“.
+- **v29.6 – Editor für Vorleser:** Zweiter Tastatur-Durchgang (Sonnet-Sub-Agent) durch Editor und Kalender. Der Editor
+  sagt sich beim Öffnen an, Setzen per Leertaste nennt Feld, neuen Inhalt und den Stand („✓ Der Lösungsweg steht“),
+  Werkzeuge tragen `aria-pressed`, Esc auf einem Knopf gibt die Pfeile ans Baufeld zurück, Ziffern im Größenfeld wählen
+  kein Werkzeug mehr. Das Spielfeld beschreibt im Editor sich selbst passend; die Ansage nachgeholter Tagesrätsel hat
+  keinen doppelten Punkt mehr.
 
 ## Als Nächstes
 

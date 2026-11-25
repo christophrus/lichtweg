@@ -417,6 +417,29 @@ if (engine === "chromium") {
   await p.context().close();
 }
 
+// 16. Editor per Tastatur: Ansage beim Öffnen, Setzen wird angesagt, Werkzeug hat aria-pressed, Esc verlässt Knöpfe
+{
+  const p = await page();
+  await p.goto(base + "#bauen");
+  await p.waitForFunction(() => typeof mode !== "undefined" && mode === "edit");
+  await p.waitForFunction(() => /^Level-Editor\./.test($("sr").textContent), null, { timeout: 3000 }).catch(() => {});
+  const open = await p.textContent("#sr");
+  check("Editor sagt sich an", /^Level-Editor\. Pfeile/.test(open), open);
+  await p.keyboard.press("1");                     // erstes Werkzeug
+  await p.keyboard.press("ArrowRight"); await p.keyboard.press("ArrowRight"); await p.keyboard.press("Space");
+  await p.waitForTimeout(120);
+  const placed = await p.evaluate(() => [$("sr").textContent, CELLNAMES()[L.grid[cursor.y][cursor.x].t]]);
+  check("Setzen per Leertaste sagt Feld, Inhalt und Stand", placed[0].startsWith("Spalte") && placed[0].includes(": " + placed[1] + ". ") && placed[1] !== "leer", placed.join(" | "));
+  const pressed = await p.evaluate(() => [...$("toolRow").children].filter(b => b.getAttribute("aria-pressed") === "true").length);
+  await p.focus("#toolRow button:nth-child(2)"); await p.keyboard.press("Escape");
+  const esc = await p.evaluate(() => [document.activeElement.tagName, $("sr").textContent]);
+  await p.keyboard.press("ArrowLeft"); await p.waitForTimeout(80);
+  const moved = await p.textContent("#sr");
+  check("Genau ein Werkzeug gedrückt, Esc verlässt den Knopf, Pfeile wieder am Brett", pressed === 1 && esc[0] === "BODY" && /^Spalte/.test(moved), JSON.stringify({ pressed, esc, moved }));
+  check("Editor-Tastatur ohne Fehler", !p.errors.length, p.errors.join(" | "));
+  await p.context().close();
+}
+
 // 12. Speichern direkt vor einem Neuladen (Spielstand laden, Sprache wechseln) geht nicht verloren – 5 Versuche
 {
   let lost = [], langLost = 0;
