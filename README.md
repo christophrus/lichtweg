@@ -30,7 +30,8 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 - **Strahlteiler** (ab Level 22): drehbare Glasscheiben, die das Licht durchlassen und zugleich spiegeln. Dann gibt es
   zwei Linsen, und beide müssen leuchten. Auch hier wird der zweite Weg rückwärts gelegt.
 - **Prismen** (ab Level 45): Sie spiegeln nur auf ihrer hellen Seite, der dunkle Glaskeil auf der Rückseite schluckt
-  das Licht. Jedes Tippen dreht sie um eine Vierteldrehung, ein Prisma kann also bis zu drei Züge brauchen.
+  das Licht – dann glimmt der Keil rötlich. Jedes Tippen dreht sie um eine Vierteldrehung, ein Prisma kann also bis zu
+  drei Züge brauchen.
 - **Kapitel „Doppelte Wege“** (ab Level 61): zwei Portalpaare in jedem Level, Ringfarbe und Punkte zeigen, welche
   zusammengehören. Prismen sitzen jetzt auch hinter Portalen, auf dem Umweg des Lichts.
 - **Zufallslevel** (Levelübersicht): ein frisches Level in deiner Stufe. Gelöst lässt es sich als Link teilen

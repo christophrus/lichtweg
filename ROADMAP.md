@@ -143,6 +143,11 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   richtung dafür liefert der gelöste Strahl. Portalpaare haben eigene Ringfarben (violett, türkis, rosa, gold), `B`
   nennt sie als Paare. Level 61 führt mit Hinweis und pulsierenden Portalen ein und hat nur ein Prisma.
   Level 1–60 und die Tagesrätsel bleiben Feld für Feld gleich (neuer Fingerabdruck im Regressionstest).
+- **v30.1 – Kapitel nachgeschärft:** Ein Spieltest (Sonnet-Sub-Agent, Level 61–65) fand Level 61 zu voll für einen
+  Einstieg (12 Züge, Teiler, vier Kristalle, viele Attrappen) und Prismen rätselhaft, wenn sie Licht schlucken. Jetzt:
+  halb so viele Attrappen im Kapitel, Level 61 ohne Teiler und mit drei Kristallen (Ziel 7), das zweite Prisma erst ab
+  Level 64. Trifft Licht die dunkle Seite eines Prismas, glimmt der Keil rötlich, und nach einem eigenen Zug sagt ein
+  leiser Ton samt Ansage, was passiert ist. Unbeleuchtete Portale zeigen ihre Paarfarbe kräftiger.
 
 ## Als Nächstes
 

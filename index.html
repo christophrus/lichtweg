@@ -249,9 +249,10 @@ function params(n) {
 // ---------- Levelgenerator: erst den Lösungsweg legen, dann verwürfeln ----------
 // n bestimmt die Schwierigkeit, seed das konkrete Level (Standard: aus n abgeleitet).
 function generate(n, seed = n * 1000003, opts = {}) {
+  const p = params(n), S = p.size;
   const gates = opts.gates ?? n >= GATE_LEVEL, splitters = opts.splitters ?? n >= SPLIT_LEVEL, portals = opts.portals ?? n >= PORTAL_LEVEL, prisms = opts.prisms ?? n >= PRISM_LEVEL;
   const duo = opts.duo ?? (n >= DUO_LEVEL && portals && prisms);
-  const p = params(n), S = p.size;
+  if (duo) { p.decoys = 6; if (n === DUO_LEVEL) p.crystals = 3; }   // zwei Portalpaare füllen das Brett schon; Level 61 führt sanft ein
   for (let attempt = 0; attempt < 5000; attempt++) {
     const R = rng(seed + attempt * 7919 + 17);
     const inb = (x, y) => x >= 0 && y >= 0 && x < S && y < S;
@@ -312,7 +313,7 @@ function generate(n, seed = n * 1000003, opts = {}) {
     L.par = rot.filter(m => m.flipped).length;
     for (const row of grid) for (const c of row) if (c.t === MIRROR) { c.ang = c.o === 0 ? -Math.PI / 4 : Math.PI / 4; c.target = c.ang; }
     if (gates) addGates(L, n, seed, straight, visited);
-    if (splitters) addSplitter(L, n, seed, straight, mirrors, visited);
+    if (splitters && !(duo && n === DUO_LEVEL)) addSplitter(L, n, seed, straight, mirrors, visited);
     if (portals) addPortals(L, n, seed, mirrors, visited);
     // Kapitel „Doppelte Wege“: ein zweites Portalpaar muss Platz finden, sonst nächster Versuch (mit Rückfallebene)
     if (duo && !(L.grid.some(r => r.some(c => c.t === PORTAL)) && addPortals(L, n, seed, mirrors, visited, 1)) && attempt < 600) continue;
@@ -471,7 +472,7 @@ function addPrisms(L, n, seed, mirrors, duo = false) {
       .map(c => ({ x: c.x, y: c.y, o: c.flipped ? c.o ^ 1 : c.o, d: arr.get(c.x + "," + c.y), off: true })));
     cand = [...off.slice(0, 1), ...cand, ...off.slice(1)];
   }
-  let want = duo ? (n === DUO_LEVEL ? 1 : 2) : 1 + (R.next() < .4 ? 1 : 0), made = 0;
+  let want = duo ? (n < DUO_LEVEL + 3 ? 1 : 2) : 1 + (R.next() < .4 ? 1 : 0), made = 0;
   for (const m of cand) {
     if (made >= want) break;
     const old = L.grid[m.y][m.x], sol = [0, 1, 2, 3].find(r => (r & 1) === (m.o === 0 ? 1 : 0) && PRISM_IN[r].includes(m.d));
@@ -489,8 +490,8 @@ function addPrisms(L, n, seed, mirrors, duo = false) {
 // Jeder Strahl kennt seinen Start (Entfernung von der Quelle), damit alle gemeinsam wachsen.
 const rotatable = c => !!c && ((c.t === MIRROR && !c.locked) || c.t === SPLIT || c.t === PRISM);
 function trace(L) {
-  if (!L.src) return { beams: [], events: [], blocked: [], hits: new Set(), dist: 0 };
-  const S = L.size, seen = new Set(), beams = [], events = [], blocked = [], hits = new Set();
+  if (!L.src) return { beams: [], events: [], blocked: [], swallowed: [], hits: new Set(), dist: 0 };
+  const S = L.size, seen = new Set(), beams = [], events = [], blocked = [], swallowed = [], hits = new Set();
   const queue = [{ x: L.src.x, y: L.src.y, d: L.src.d, hue: GOLD, start: 0 }];
   const ports = new Map(), byId = {};   // Portale gehören paarweise zusammen (gleiche Nummer)
   for (const row of L.grid) for (const c of row) if (c.t === PORTAL) (byId[c.id] ||= []).push(c);
@@ -510,7 +511,7 @@ function trace(L) {
       if (seen.has(key)) break;
       seen.add(key);
       if (c.t === MIRROR) { pts.push({ x: px, y: py }); d = c.o === 0 ? SLASH[d] : BACK[d]; }
-      else if (c.t === PRISM) { pts.push({ x: px, y: py }); if (!PRISM_IN[c.r].includes(d)) break; d = c.r & 1 ? SLASH[d] : BACK[d]; }
+      else if (c.t === PRISM) { pts.push({ x: px, y: py }); if (!PRISM_IN[c.r].includes(d)) { swallowed.push(c); break; } d = c.r & 1 ? SLASH[d] : BACK[d]; }
       else if (c.t === SPLIT) { pts.push({ x: px, y: py }); queue.push({ x, y, d: c.o === 0 ? SLASH[d] : BACK[d], hue, start: dist }); bev.push({ dist, cell: c, hue }); }
       else if (c.t === CRYSTAL) { hue = c.hue; bev.push({ dist, cell: c, hue }); }
       else if (c.t === GATE) bev.push({ dist, cell: c, hue });
@@ -527,7 +528,7 @@ function trace(L) {
     events.push(...bev);
   }
   events.sort((a, b) => a.dist - b.dist);
-  return { beams, events, blocked, hits, dist: Math.max(...beams.map(b => b.end)) };
+  return { beams, events, blocked, swallowed, hits, dist: Math.max(...beams.map(b => b.end)) };
 }
 function isSolved(L, T) {
   if (!L.recvs.every(r => T.hits.has(r))) return false;
@@ -1485,6 +1486,8 @@ function frame(now) {
     if (!quietLit) say(tx(`Kristall leuchtet: ${L.crystals.filter(k => lit.has(k)).length} von ${L.crystals.length}`, `Crystal lit: ${L.crystals.filter(k => lit.has(k)).length} of ${L.crystals.length}`)); }
   litPrev = lit;
   if (!won && mode !== "edit" && shown >= T.dist && isSolved(L, T)) onWin();
+  if (T.swallowed.length && !T.blocked.length && !quietLit && mode !== "edit" && shown >= T.dist && !T.signaled) { T.signaled = true; tone(196, .3, .05, "sine");
+    say(tx("Ein Prisma schluckt das Licht auf seiner dunklen Seite.", "A prism swallows the light on its dark side.")); }
   if (T.blocked.length && shown >= T.dist && !T.signaled) { T.signaled = true; tone(146, .35, .07, "sine"); tone(110, .45, .05, "triangle"); buzz(30); say(tx("Ein Farbtor blockiert das Licht.", "A colour gate blocks the light.")); }
   for (const r of L.recvs) { const e = T.events.find(e => e.cell === r && e.dist <= shown); r._hue = e ? e.hue : GOLD; }
 
@@ -1533,6 +1536,9 @@ function frame(now) {
       mg.addColorStop(0, "#ffffff"); mg.addColorStop(1, "#c9c2f0");
       ctx.fillStyle = mg; roundRect(-len, -wd, len * 2, wd, wd / 2); ctx.fill();
       ctx.restore();
+      if (T.swallowed.includes(c) && shown >= T.dist) {   // Licht trifft die dunkle Seite: Keil glimmt rötlich
+        ctx.fillStyle = `rgba(255,120,150,${.12 + .14 * Math.abs(Math.sin(t * 6))})`; ctx.beginPath(); ctx.arc(cx, cy, cs * .36, 0, 6.283); ctx.fill();
+      }
     } else if (c.t === SPLIT) {
       c.ang += (c.target - c.ang) * Math.min(1, dt * 16);
       const hov = hover === c && !won;
@@ -1559,10 +1565,10 @@ function frame(now) {
     } else if (c.t === PORTAL) {
       const on = lit.has(c), r = cs * .34;
       const pg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-      pg.addColorStop(0, on ? "rgba(240,232,255,.6)" : "rgba(8,6,26,.95)"); pg.addColorStop(.65, on ? "rgba(175,155,255,.3)" : "rgba(70,58,140,.35)"); pg.addColorStop(1, "rgba(120,100,230,0)");
+      pg.addColorStop(0, on ? "rgba(240,232,255,.6)" : "rgba(8,6,26,.95)"); pg.addColorStop(.65, `rgba(${PORTAL_RGB[c.id % 4]},${on ? .3 : .22})`); pg.addColorStop(1, "rgba(120,100,230,0)");
       ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.fill();
       ctx.lineWidth = Math.max(1.5, cs * .04); ctx.setLineDash([cs * .13, cs * .07]);
-      for (const [rr, sp, a] of [[.95, .8, on ? .95 : .6], [.58, -1.3, on ? .8 : .4]]) {
+      for (const [rr, sp, a] of [[.95, .8, on ? .95 : .85], [.58, -1.3, on ? .8 : .6]]) {
         ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * sp + c.id); ctx.strokeStyle = `rgba(${PORTAL_RGB[c.id % 4]},${a})`;
         ctx.beginPath(); ctx.arc(0, 0, r * rr, 0, 6.283); ctx.stroke(); ctx.restore();
       }

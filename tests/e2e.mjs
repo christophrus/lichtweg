@@ -455,6 +455,10 @@ if (engine === "chromium") {
   check("Level 61: Kapitelhinweis, beide Portalpaare pulsieren", /^Neues Kapitel – Doppelte Wege/.test(ch.hint) && ch.isNew && ch.pulse === 4 && ch.pairs === 2, JSON.stringify(ch));
   await p.evaluate(() => { for (const c of L.grid.flat()) { if (c.t === MIRROR && c.solO !== undefined && c.o !== c.solO) flip(c); if (c.t === PRISM) while (c.r !== c.sol) flip(c); } });
   check("Level 61 lässt sich lösen", await p.waitForSelector("#win.show", { timeout: 8000 }).then(() => true, () => false));
+  // Prisma auf der dunklen Seite: nach einem eigenen Zug angesagt (Level 46: nach den Spiegeln schluckt ein Prisma das Licht)
+  await p.evaluate(() => { loadLevel(46); for (const c of L.grid.flat()) if ((c.t === MIRROR || c.t === SPLIT) && c.solO !== undefined && c.o !== c.solO) flip(c); });
+  const sw = await p.waitForFunction(() => /dunklen Seite/.test($("sr").textContent), null, { timeout: 6000 }).then(() => true, () => false);
+  check("Prisma schluckt Licht: Ansage nach dem Zug", sw, await p.textContent("#sr"));
   check("Kapitel ohne Fehler", !p.errors.length, p.errors.join(" | "));
   await p.context().close();
 }
