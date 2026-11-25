@@ -1729,7 +1729,7 @@ function openLevels() {
     const open = n <= save.unlocked, st = save.stars[n] || 0, b = document.createElement("button");
     sum += st; b.disabled = !open;
     b.innerHTML = `${n}<small>${open ? "★".repeat(st) : "🔒"}</small>`;
-    b.setAttribute("aria-label", open ? tx(`Level ${n}, ${st} Sterne`, `Level ${n}, ${st} stars`) : tx(`Level ${n}, gesperrt`, `Level ${n}, locked`));
+    b.setAttribute("aria-label", open ? tx(`Level ${n}, ${st} ${st === 1 ? "Stern" : "Sterne"}`, `Level ${n}, ${st} ${st === 1 ? "star" : "stars"}`) : tx(`Level ${n}, gesperrt`, `Level ${n}, locked`));
     if (mode === "level" && L.n === n) b.className = "cur";
     b.onclick = () => { closeLevels(); loadLevel(n); };
     g.append(b);
@@ -1819,6 +1819,7 @@ addEventListener("keydown", ev => {
   if ($("levels").classList.contains("show")) {
     const g = ev.target.closest?.("#levelGrid, #cal");
     if (g && k in ARROWS) { ev.preventDefault(); gridMove(ev.target, ARROWS[k]); }
+    if (g && (k === "home" || k === "end")) { ev.preventDefault(); const bs = g.querySelectorAll("button:not(:disabled)"); bs[k === "home" ? 0 : bs.length - 1]?.focus(); }   // erstes / letztes offenes
     if (k === "escape" || k === "l") closeLevels(); return; }
   if (mode === "edit") {
     if (["BUTTON", "SELECT"].includes(ev.target.tagName) && (k === " " || k === "enter" || k in ARROWS)) return;

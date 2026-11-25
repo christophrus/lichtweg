@@ -405,7 +405,12 @@ if (engine === "chromium") {
   const ae = await p.evaluate(() => document.activeElement.closest("#win") ? document.activeElement.id : "frei");
   check("Nach „Weiter“ bleibt kein Fokus in der versteckten Karte", ae === "frei", ae);
   await p.keyboard.press("l"); await p.waitForSelector("#levels.show");
-  await p.keyboard.press("Tab"); await p.keyboard.press("Escape");
+  await p.evaluate(() => $("levelGrid").querySelector("button").focus()); await p.keyboard.press("End");
+  const endTo = await p.evaluate(() => document.activeElement.textContent.trim());
+  await p.keyboard.press("Home");
+  const homeTo = await p.evaluate(() => document.activeElement.textContent.trim());
+  check("Übersicht: Ende/Pos1 springen zum letzten/ersten offenen Level", /^2/.test(endTo) && /^1/.test(homeTo), endTo + " / " + homeTo);
+  await p.keyboard.press("Escape");
   const ae2 = await p.evaluate(() => document.activeElement.closest("#levels") ? document.activeElement.id || document.activeElement.textContent : "frei");
   check("Nach Esc in der Übersicht bleibt kein Fokus darin", ae2 === "frei", ae2);
   check("Tastatur-Durchgang ohne Fehler", !p.errors.length, p.errors.join(" | "));

@@ -127,6 +127,8 @@ fair bleiben. Jedes Level ist garantiert lösbar, weil der Generator den Lösung
   jetzt angesagt (Name, Größe, Ziel) statt nur „Kristall leuchtet“, das bis zum ersten Zug schweigt. Der Tipp per H
   setzt den Cursor auf das falsche Teil, Leertaste dreht es sofort. Nach „Weiter“ und Esc in der Übersicht bleibt der
   Fokus nicht mehr auf einem versteckten Knopf, den die Leertaste sonst noch einmal ausgelöst hätte.
+- **v29.5 – Übersicht per Tastatur:** `Pos1`/`Ende` springen zum ersten bzw. letzten offenen Level; der Vorleser sagt
+  „1 Stern“ statt „1 Sterne“.
 
 ## Als Nächstes
 

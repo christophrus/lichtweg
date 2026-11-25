@@ -7,7 +7,7 @@ Ein ruhiges Licht-Puzzle in einer einzigen HTML-Datei: Spiegel drehen, den Strah
 **Spielen:** https://christophrus.github.io/lichtweg/ · **Tagesrätsel:** https://christophrus.github.io/lichtweg/#heute
 (ein bestimmter Tag: `#tag=JJJJ-MM-TT`, z. B. [#tag=2026-11-23](https://christophrus.github.io/lichtweg/#tag=2026-11-23) für Rätsel #1)
 
-- **Steuerung:** Klick/Tippen dreht einen Spiegel · `Z` / ↶ Rückgängig · `R` Neustart · `T` Tagesrätsel · `M` Ton · `H` (Knopf ?) Tipp · `Esc` schließt Dialoge.
+- **Steuerung:** Klick/Tippen dreht einen Spiegel · `Z` / ↶ Rückgängig · `R` Neustart · `T` Tagesrätsel · `M` Ton · `H` (Knopf ?) Tipp · `Esc` schließt Dialoge · in der Levelübersicht wandern Pfeile, `Pos1`/`Ende` springen zum ersten/letzten offenen Level.
   `Z` geht auch als `Backspace` oder `Strg+Z`; `Enter` dreht wie die Leertaste und führt nach dem Lösen weiter.
   Ein Klick auf den Titel oder `L` öffnet die Levelübersicht. `N`/`P` wechseln zum nächsten oder vorherigen Level.
 - **Nur mit Tastatur:** Pfeiltasten springen von Spiegel zu Spiegel, die Leertaste dreht ihn. Ein Screenreader sagt an, welches Teil gewählt ist,
